@@ -8,11 +8,12 @@ import { NominationCard } from './NominationCard'
 interface NominationPhaseProps {
   poll: Poll
   participantId: string | null
+  joinedName: string | null
   adminToken: string | null
   onRefetch: () => void
 }
 
-export function NominationPhase({ poll, participantId, adminToken, onRefetch }: NominationPhaseProps) {
+export function NominationPhase({ poll, participantId, joinedName, adminToken, onRefetch }: NominationPhaseProps) {
   const [freeText, setFreeText] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -48,6 +49,10 @@ export function NominationPhase({ poll, participantId, adminToken, onRefetch }: 
     setFreeText('')
   }
 
+  const myNominations = joinedName
+    ? (poll.nominations ?? []).filter(n => n.participant_name === joinedName)
+    : []
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -58,7 +63,7 @@ export function NominationPhase({ poll, participantId, adminToken, onRefetch }: 
       {participantId && (
         <div>
           <p className="text-sm text-gray-500 mb-2">
-            {(poll.nominations ?? []).length} of {poll.max_nominations} nominations used
+            {myNominations.length} of {poll.max_nominations} nominations used
           </p>
           {poll.category === 'general' ? (
             <form onSubmit={handleFreeTextSubmit} className="flex gap-2">

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, useSearchParams } from 'react-router-dom'
+import { useParams, useSearchParams, Navigate } from 'react-router-dom'
 import { usePoll } from '../hooks/usePoll'
 import { api } from '../api/client'
 import { NominationPhase } from '../components/NominationPhase'
@@ -9,20 +9,26 @@ import { AdminControls } from '../components/AdminControls'
 
 export function PollPage() {
   const { id } = useParams<{ id: string }>()
+
+  if (!id) return <Navigate to="/" />
+
   const [searchParams] = useSearchParams()
   const adminToken = searchParams.get('admin')
-  const { poll, error, loading, refetch } = usePoll(id!)
+  const { poll, error, loading, refetch } = usePoll(id)
 
   const [participantId, setParticipantId] = useState<string | null>(null)
+  const [joinedName, setJoinedName] = useState<string | null>(null)
   const [participantName, setParticipantName] = useState('')
   const [joining, setJoining] = useState(false)
   const [joinError, setJoinError] = useState<string | null>(null)
-  const hasToken = api.hasToken(id!)
+  const hasToken = api.hasToken(id)
 
   useEffect(() => {
-    // Auto-rejoin if token exists in localStorage
     if (hasToken && id) {
-      api.joinPoll(id, '').then(data => setParticipantId(data.participant_id)).catch(() => null)
+      api.joinPoll(id, '').then(data => {
+        setParticipantId(data.participant_id)
+        setJoinedName(data.name)
+      }).catch(() => null)
     }
   }, [hasToken, id])
 
@@ -34,6 +40,7 @@ export function PollPage() {
     try {
       const data = await api.joinPoll(id, participantName.trim())
       setParticipantId(data.participant_id)
+      setJoinedName(data.name)
     } catch (e) {
       setJoinError(e instanceof Error ? e.message : 'Failed to join')
     } finally {
@@ -71,7 +78,7 @@ export function PollPage() {
       )}
 
       {poll.phase === 'nominating' && (
-        <NominationPhase poll={poll} participantId={participantId} adminToken={adminToken} onRefetch={refetch} />
+        <NominationPhase poll={poll} participantId={participantId} joinedName={joinedName} adminToken={adminToken} onRefetch={refetch} />
       )}
       {poll.phase === 'voting' && participantId && <VotingPhase poll={poll} onRefetch={refetch} />}
       {poll.phase === 'voting' && !participantId && !needsJoin && (

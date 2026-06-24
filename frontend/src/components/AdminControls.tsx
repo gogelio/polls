@@ -10,12 +10,16 @@ interface AdminControlsProps {
 
 export function AdminControls({ poll, adminToken, onRefetch }: AdminControlsProps) {
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const transition = async (phase: string) => {
     setLoading(true)
+    setError(null)
     try {
       await api.transitionPhase(poll.id, adminToken, phase)
       await onRefetch()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to transition phase')
     } finally {
       setLoading(false)
     }
@@ -24,6 +28,7 @@ export function AdminControls({ poll, adminToken, onRefetch }: AdminControlsProp
   return (
     <div className="fixed bottom-4 right-4 bg-amber-50 border border-amber-300 rounded-xl p-4 shadow-lg text-sm space-y-2 w-56">
       <p className="font-semibold text-amber-800">Admin Controls</p>
+      {error && <p className="text-red-600 text-xs">{error}</p>}
       {poll.phase === 'nominating' && (
         <button disabled={loading} onClick={() => transition('voting')}
           className="w-full bg-amber-500 text-white py-2 rounded-lg disabled:opacity-50">

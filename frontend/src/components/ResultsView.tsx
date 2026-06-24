@@ -21,7 +21,7 @@ export function ResultsView({ poll }: ResultsViewProps) {
   const winnerMeta = winner?.metadata
     ? (typeof winner.metadata === 'string'
         ? JSON.parse(winner.metadata) as NominationMetadata
-        : winner.metadata as unknown as NominationMetadata)
+        : null)
     : null
 
   return (
