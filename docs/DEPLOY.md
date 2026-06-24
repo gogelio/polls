@@ -24,12 +24,11 @@ database_id = "paste-your-id-here"
 ### 2. Apply migrations
 
 ```bash
-# Local dev
-npx wrangler d1 migrations apply polls --local
-
-# Production
+# Production only — run this to apply migrations to the live D1 database
 npx wrangler d1 migrations apply polls
 ```
+
+The `--local` flag applies migrations to a local SQLite file used by `wrangler dev`. Only run that if you need local development to work; skip it for a production-only deploy.
 
 ### 3. Set TMDB API key secret
 
@@ -54,12 +53,15 @@ In the Cloudflare dashboard: Workers & Pages → polls-worker → Settings → T
 
 ### Option A: Via Dashboard (recommended)
 
+**Important:** Create this as a **Pages** project, not a Worker. If you see a "Deploy command" field and no "Build output directory" field, you're in the Worker setup — go back and choose Pages instead.
+
 1. Push this repo to GitHub
-2. In Cloudflare dashboard: Workers & Pages → Create Application → Pages → Connect to Git
+2. In Cloudflare dashboard: **Workers & Pages → Create → Pages → Connect to Git**
 3. Select your repository
 4. Build settings:
-   - Build command: `cd frontend && npm run build`
-   - Build output directory: `frontend/dist`
+   - **Build command**: `cd frontend && npm install && npm run build`
+   - **Build output directory**: `frontend/dist`
+   - Leave the deploy command field blank (Pages deploys automatically)
 5. Environment variables:
    - `VITE_API_URL` = `https://polls-worker.YOUR_ACCOUNT.workers.dev`
 6. Deploy!
