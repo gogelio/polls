@@ -29,20 +29,12 @@ export default function App() {
       </div>
 
       {/* Content layer */}
-      <div className="relative z-10 min-h-screen flex flex-col">
-        <nav className="sticky top-0 z-20 border-b border-line px-6 py-3.5 flex items-center backdrop-blur-md bg-[var(--nav-glass)]">
-          <a href="/" className="flex items-center gap-2 font-extrabold text-xl text-ink tracking-tight">
-            <span className="text-accent">◆</span>
-            Polls
-          </a>
-        </nav>
-        <main className="flex-1">
-          <Routes>
-            <Route path="/" element={<CreatePoll />} />
-            <Route path="/p/:id" element={<PollPage />} />
-            <Route path="*" element={<Navigate to="/" />} />
-          </Routes>
-        </main>
+      <div className="relative z-10 min-h-screen">
+        <Routes>
+          <Route path="/" element={<CreatePoll />} />
+          <Route path="/p/:id" element={<PollPage />} />
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
       </div>
     </BrowserRouter>
   )
