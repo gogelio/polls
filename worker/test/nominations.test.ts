@@ -66,4 +66,28 @@ describe('DELETE /polls/:id/nominations/:nid', () => {
     )
     expect(res.status).toBe(200)
   })
+
+  it('returns 404 when deleting nomination that does not exist', async () => {
+    const { id, adminToken } = await seedPoll()
+    const res = await SELF.fetch(
+      `http://example.com/polls/${id}/nominations/doesnotexist?admin=${adminToken}`,
+      { method: 'DELETE' }
+    )
+    expect(res.status).toBe(404)
+  })
+})
+
+describe('POST /polls/:id/nominations - validation', () => {
+  beforeEach(applySchema)
+
+  it('rejects nomination when title is missing', async () => {
+    const { id } = await seedPoll()
+    const { token } = await seedParticipant(id)
+    const res = await SELF.fetch(`http://example.com/polls/${id}/nominations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Participant-Token': token },
+      body: JSON.stringify({ title: '', metadata: null }),
+    })
+    expect(res.status).toBe(400)
+  })
 })

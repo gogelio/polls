@@ -8,9 +8,14 @@ export async function participantAuth(
   const token = c.req.header('Participant-Token')
   if (!token) return c.json({ error: 'Missing Participant-Token header' }, 401)
 
-  const participant = await c.env.DB.prepare(
-    'SELECT id FROM participants WHERE token = ?'
-  ).bind(token).first<{ id: string }>()
+  // Scope to poll when route has an :id param (poll-scoped routes)
+  const pollId = c.req.param('id')
+  const query = pollId
+    ? 'SELECT id FROM participants WHERE token = ? AND poll_id = ?'
+    : 'SELECT id FROM participants WHERE token = ?'
+  const bindings = pollId ? [token, pollId] : [token]
+
+  const participant = await c.env.DB.prepare(query).bind(...bindings).first<{ id: string }>()
 
   if (!participant) return c.json({ error: 'Invalid participant token' }, 401)
 

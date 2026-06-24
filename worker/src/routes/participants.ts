@@ -16,6 +16,7 @@ participantsRouter.post('/:id/join', async (c) => {
     if (existing) {
       return c.json({ participant_id: existing.id, token: existing.token, name: existing.name })
     }
+    // Token not found for this poll — treat as new participant (allows re-joining with different/expired tokens)
   }
 
   const { name } = await c.req.json<{ name: string }>()
