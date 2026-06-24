@@ -16,7 +16,6 @@ export function SearchInput({ pollId, category, onSelect }: SearchInputProps) {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -53,24 +52,39 @@ export function SearchInput({ pollId, category, onSelect }: SearchInputProps) {
 
   return (
     <div className="relative" ref={containerRef}>
-      <input
-        className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        value={query}
-        onChange={e => { setQuery(e.target.value); setShowResults(true) }}
-        placeholder={category === 'book' ? 'Search for a book…' : 'Search for a movie…'} />
-      {loading && <p className="text-xs text-gray-400 mt-1">Searching…</p>}
+      <div className="relative">
+        <input
+          className="input pr-8"
+          value={query}
+          onChange={e => { setQuery(e.target.value); setShowResults(true) }}
+          placeholder={category === 'book' ? 'Search for a book…' : 'Search for a movie…'}
+        />
+        {loading && (
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-3 text-xs animate-pulse">
+            ···
+          </span>
+        )}
+      </div>
+
       {showResults && results.length > 0 && (
-        <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg overflow-hidden">
-          {results.map(r => (
-            <button key={r.external_id} type="button"
-              className="w-full flex items-center gap-3 px-3 py-2 hover:bg-gray-50 text-left"
-              onClick={() => handleSelect(r)}>
+        <div className="absolute z-50 w-full mt-1.5 bg-raised border border-line rounded-xl shadow-2xl shadow-black/60 overflow-hidden">
+          {results.map((r, i) => (
+            <button
+              key={r.external_id}
+              type="button"
+              onClick={() => handleSelect(r)}
+              className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-hover text-left transition-colors ${i < results.length - 1 ? 'border-b border-line' : ''}`}
+            >
               {(r.cover_url || r.poster_url) && (
-                <img src={r.cover_url ?? r.poster_url ?? ''} alt="" className="w-8 h-11 object-cover rounded" />
+                <img
+                  src={r.cover_url ?? r.poster_url ?? ''}
+                  alt=""
+                  className="w-8 h-11 object-cover rounded-md flex-shrink-0"
+                />
               )}
-              <div>
-                <div className="font-medium text-sm">{r.title}</div>
-                <div className="text-xs text-gray-500">
+              <div className="min-w-0">
+                <div className="font-semibold text-sm text-ink truncate">{r.title}</div>
+                <div className="text-xs text-ink-3">
                   {r.author ?? r.director ?? ''}{r.year ? ` · ${r.year}` : ''}
                 </div>
               </div>

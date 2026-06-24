@@ -24,18 +24,25 @@ function SortableItem({ nomination, rank }: SortableItemProps) {
   const imageUrl = meta?.cover_url ?? meta?.poster_url
 
   return (
-    <div ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
-      className="flex items-center gap-3 border-2 rounded-lg p-3 bg-white cursor-grab active:cursor-grabbing"
-      {...attributes} {...listeners}>
-      <span className="text-indigo-600 font-bold text-lg w-6 text-center">{rank}</span>
-      {imageUrl && <img src={imageUrl} alt="" className="w-8 h-11 object-cover rounded flex-shrink-0" />}
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
+      className="flex items-center gap-3 bg-raised border border-line rounded-xl p-3 cursor-grab active:cursor-grabbing select-none touch-none"
+      {...attributes}
+      {...listeners}
+    >
+      <span className="text-accent font-extrabold text-base w-6 text-center flex-shrink-0 tabular-nums">
+        {rank}
+      </span>
+      {imageUrl && (
+        <img src={imageUrl} alt="" className="w-8 h-11 object-cover rounded-lg flex-shrink-0" />
+      )}
       <div className="flex-1 min-w-0">
-        <div className="font-medium text-sm truncate">{nomination.title}</div>
-        {meta?.author && <div className="text-xs text-gray-400">{meta.author}</div>}
-        {meta?.director && <div className="text-xs text-gray-400">{meta.director}</div>}
+        <div className="font-semibold text-sm text-ink truncate">{nomination.title}</div>
+        {meta?.author && <div className="text-xs text-ink-3">{meta.author}</div>}
+        {meta?.director && <div className="text-xs text-ink-3">{meta.director}</div>}
       </div>
-      <span className="text-gray-300 text-xl select-none">⠿</span>
+      <span className="text-ink-3 text-lg select-none flex-shrink-0">⠿</span>
     </div>
   )
 }
@@ -48,7 +55,7 @@ interface VotingPhaseProps {
 export function VotingPhase({ poll, onRefetch }: VotingPhaseProps) {
   const nominations = poll.nominations ?? []
   const [ranked, setRanked] = useState<PollNomination[]>(nominations)
-  const [selected, setSelected] = useState<string | null>(null) // for plurality
+  const [selected, setSelected] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -75,7 +82,7 @@ export function VotingPhase({ poll, onRefetch }: VotingPhaseProps) {
     try {
       let votes: Array<{ nomination_id: string; rank: number | null }>
       if (poll.voting_method === 'plurality') {
-        if (!selected) { setError('Please select an option'); setSubmitting(false); return }
+        if (!selected) { setError('Pick one to vote'); setSubmitting(false); return }
         votes = [{ nomination_id: selected, rank: null }]
       } else {
         votes = ranked.map((nom, i) => ({ nomination_id: nom.id, rank: i + 1 }))
@@ -91,42 +98,61 @@ export function VotingPhase({ poll, onRefetch }: VotingPhaseProps) {
   }
 
   if (submitted) {
-    return <p className="text-center text-green-600 py-8">Your vote has been submitted!</p>
+    return (
+      <div className="card p-10 text-center">
+        <div className="text-5xl mb-4">✓</div>
+        <p className="text-xl font-extrabold text-ink mb-1">Vote submitted!</p>
+        <p className="text-ink-3 text-sm">Waiting for results…</p>
+      </div>
+    )
   }
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-semibold">
-        {poll.voting_method === 'plurality' ? 'Vote for one' : 'Drag to rank — 1 = most preferred'}
-      </h2>
+      <div className="card p-5">
+        <p className="text-sm font-semibold text-ink mb-4">
+          {poll.voting_method === 'plurality'
+            ? 'Pick your favourite'
+            : 'Drag to rank — #1 is your top pick'}
+        </p>
 
-      {poll.voting_method === 'plurality' ? (
-        <div className="space-y-2">
-          {nominations.map(nom => (
-            <button key={nom.id} type="button"
-              className={`w-full flex items-center gap-3 border-2 rounded-lg p-3 text-left ${selected === nom.id ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200'}`}
-              onClick={() => setSelected(nom.id)}>
-              <span className="text-sm font-medium">{nom.title}</span>
-            </button>
-          ))}
-        </div>
-      ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={ranked.map(n => n.id)} strategy={verticalListSortingStrategy}>
-            <div className="space-y-2">
-              {ranked.map((nom, i) => (
-                <SortableItem key={nom.id} nomination={nom} rank={i + 1} />
-              ))}
-            </div>
-          </SortableContext>
-        </DndContext>
-      )}
+        {poll.voting_method === 'plurality' ? (
+          <div className="space-y-2">
+            {nominations.map(nom => (
+              <button
+                key={nom.id}
+                type="button"
+                onClick={() => setSelected(nom.id)}
+                className={`w-full flex items-center gap-3 border-2 rounded-xl p-3 text-left transition-colors ${
+                  selected === nom.id
+                    ? 'border-accent bg-accent-muted'
+                    : 'border-line bg-raised hover:border-line-bright'
+                }`}
+              >
+                <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 transition-colors ${
+                  selected === nom.id ? 'border-accent bg-accent' : 'border-line'
+                }`} />
+                <span className="font-semibold text-sm text-ink">{nom.title}</span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={ranked.map(n => n.id)} strategy={verticalListSortingStrategy}>
+              <div className="space-y-2">
+                {ranked.map((nom, i) => (
+                  <SortableItem key={nom.id} nomination={nom} rank={i + 1} />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        )}
+      </div>
 
-      {error && <p className="text-red-600 text-sm">{error}</p>}
+      {error && <p className="text-danger text-sm px-1">{error}</p>}
 
-      <button onClick={handleSubmit} disabled={submitting}
-        className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold disabled:opacity-50">
-        {submitting ? 'Submitting…' : 'Submit Vote'}
+      <button onClick={handleSubmit} disabled={submitting} className="btn-primary">
+        {submitting ? 'Submitting…' : 'Submit vote →'}
       </button>
     </div>
   )

@@ -14,8 +14,8 @@ export function ResultsView({ poll }: ResultsViewProps) {
       .catch(e => setError(e instanceof Error ? e.message : 'Failed to load results'))
   }, [poll.id])
 
-  if (error) return <p className="text-center text-gray-400 py-8">{error}</p>
-  if (!results) return <p className="text-center text-gray-400 py-8">Loading results…</p>
+  if (error) return <p className="text-ink-3 text-sm text-center py-10">{error}</p>
+  if (!results) return <p className="text-ink-3 text-sm text-center py-10 animate-pulse">Loading results…</p>
 
   const winner = results.results[0]
   const winnerMeta = winner?.metadata
@@ -23,45 +23,56 @@ export function ResultsView({ poll }: ResultsViewProps) {
         ? JSON.parse(winner.metadata) as NominationMetadata
         : null)
     : null
+  const winnerImage = winnerMeta?.cover_url ?? winnerMeta?.poster_url
 
   return (
-    <div className="space-y-6">
-      <div>
-        <p className="text-sm text-gray-500 mb-1">Winner · {poll.voting_method.replace(/_/g, ' ')}</p>
-        <div className="flex items-center gap-4 p-4 border-2 border-indigo-500 rounded-xl bg-indigo-50">
-          {(winnerMeta?.cover_url ?? winnerMeta?.poster_url) && (
-            <img src={winnerMeta?.cover_url ?? winnerMeta?.poster_url ?? ''} alt=""
-              className="w-14 h-20 object-cover rounded" />
-          )}
-          <div>
-            <div className="text-2xl font-bold">{winner?.title}</div>
-            {winnerMeta?.author && <div className="text-gray-500">{winnerMeta.author}</div>}
-            {winnerMeta?.director && <div className="text-gray-500">{winnerMeta.director}</div>}
+    <div className="space-y-4">
+      {/* Winner */}
+      {winner && (
+        <div className="relative overflow-hidden border-2 border-accent rounded-2xl p-5 bg-accent-muted">
+          <div className="flex items-center gap-4">
+            <span className="text-4xl flex-shrink-0">🏆</span>
+            {winnerImage && (
+              <img src={winnerImage} alt="" className="w-14 h-20 object-cover rounded-xl flex-shrink-0" />
+            )}
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-accent uppercase tracking-widest mb-1">Winner</p>
+              <p className="text-2xl font-extrabold text-ink tracking-tight leading-tight text-wrap-balance">
+                {winner.title}
+              </p>
+              {winnerMeta?.author && <p className="text-ink-2 text-sm mt-0.5">{winnerMeta.author}</p>}
+              {winnerMeta?.director && <p className="text-ink-2 text-sm mt-0.5">{winnerMeta.director}</p>}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      <div>
-        <p className="text-sm font-medium text-gray-500 mb-3">
-          Full standings · {results.total_voters} voter{results.total_voters !== 1 ? 's' : ''}
+      {/* Standings */}
+      <div className="card p-5 space-y-4">
+        <p className="text-xs font-bold text-ink-3 uppercase tracking-widest">
+          Full standings · {results.total_voters} voter{results.total_voters !== 1 ? 's' : ''} · {poll.voting_method.replace(/_/g, ' ')}
         </p>
-        <div className="space-y-3">
-          {results.results.map((r, i) => (
-            <div key={r.nomination_id} className="flex items-center gap-3">
-              <span className="w-5 text-sm font-bold text-gray-400">{i + 1}</span>
-              <span className="flex-1 text-sm">{r.title}</span>
-              <span className="text-xs text-gray-400 w-8 text-right">{r.percentage}%</span>
-              <div className="w-24 h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${r.percentage}%` }} />
-              </div>
+        {results.results.map((r, i) => (
+          <div key={r.nomination_id} className="space-y-1.5">
+            <div className="flex items-center gap-3">
+              <span className="w-5 text-xs font-bold text-ink-3 tabular-nums text-right flex-shrink-0">{i + 1}</span>
+              <span className="flex-1 text-sm font-semibold text-ink truncate">{r.title}</span>
+              <span className="text-xs text-ink-3 tabular-nums flex-shrink-0">{r.percentage}%</span>
             </div>
-          ))}
-        </div>
+            <div className="ml-8 h-1.5 bg-surface rounded-full overflow-hidden">
+              <div
+                className="h-full bg-accent rounded-full transition-all duration-700"
+                style={{ width: `${r.percentage}%` }}
+              />
+            </div>
+          </div>
+        ))}
       </div>
 
       <button
         onClick={() => navigator.clipboard.writeText(window.location.href)}
-        className="text-sm text-indigo-600 underline">
+        className="text-sm text-accent font-semibold hover:underline"
+      >
         🔗 Copy results link
       </button>
     </div>

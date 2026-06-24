@@ -26,23 +26,32 @@ export function AdminControls({ poll, adminToken, onRefetch }: AdminControlsProp
   }
 
   return (
-    <div className="fixed bottom-4 right-4 bg-amber-50 border border-amber-300 rounded-xl p-4 shadow-lg text-sm space-y-2 w-56">
-      <p className="font-semibold text-amber-800">Admin Controls</p>
-      {error && <p className="text-red-600 text-xs">{error}</p>}
+    <div className="fixed bottom-4 right-4 bg-[var(--raised-glass)] backdrop-blur-md border border-line-bright rounded-2xl p-4 shadow-2xl shadow-black/60 space-y-3 w-52">
+      <div className="flex items-center gap-2">
+        <span className="text-warn text-xs">⚡</span>
+        <p className="text-xs font-bold text-ink-2 uppercase tracking-widest">Admin</p>
+      </div>
+      {error && <p className="text-danger text-xs">{error}</p>}
       {poll.phase === 'nominating' && (
-        <button disabled={loading} onClick={() => transition('voting')}
-          className="w-full bg-amber-500 text-white py-2 rounded-lg disabled:opacity-50">
-          Close Nominations → Start Voting
+        <button
+          disabled={loading}
+          onClick={() => transition('voting')}
+          className="w-full bg-accent hover:bg-accent-hover text-white text-sm font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-40"
+        >
+          Start voting →
         </button>
       )}
       {poll.phase === 'voting' && (
-        <button disabled={loading} onClick={() => transition('closed')}
-          className="w-full bg-red-500 text-white py-2 rounded-lg disabled:opacity-50">
-          Close Voting → Show Results
+        <button
+          disabled={loading}
+          onClick={() => transition('closed')}
+          className="w-full bg-danger text-white text-sm font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-40 hover:opacity-90"
+        >
+          Close & show results →
         </button>
       )}
       {poll.phase === 'closed' && (
-        <p className="text-amber-700">Poll is closed.</p>
+        <p className="text-ink-3 text-xs">Poll is closed.</p>
       )}
     </div>
   )

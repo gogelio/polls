@@ -53,48 +53,94 @@ export function NominationPhase({ poll, participantId, joinedName, adminToken, o
     ? (poll.nominations ?? []).filter(n => n.participant_name === joinedName)
     : []
 
+  const slotsUsed = myNominations.length
+  const slotsTotal = poll.max_nominations
+  const canNominate = participantId && slotsUsed < slotsTotal
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Nominations</h2>
-        {poll.nomination_closes_at && <Timer closesAt={poll.nomination_closes_at} />}
-      </div>
-
+    <div className="space-y-3">
+      {/* Input card */}
       {participantId && (
-        <div>
-          <p className="text-sm text-gray-500 mb-2">
-            {myNominations.length} of {poll.max_nominations} nominations used
-          </p>
-          {poll.category === 'general' ? (
-            <form onSubmit={handleFreeTextSubmit} className="flex gap-2">
-              <input className="flex-1 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                value={freeText} onChange={e => setFreeText(e.target.value)} placeholder="Nominate something…" />
-              <button type="submit" disabled={submitting}
-                className="bg-indigo-600 text-white px-4 py-2 rounded-lg disabled:opacity-50">
-                Add
-              </button>
-            </form>
-          ) : (
-            <SearchInput pollId={poll.id} category={poll.category} onSelect={handleSearchSelect} />
+        <div className="card p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-semibold text-ink">Your nominations</span>
+            {poll.nomination_closes_at && <Timer closesAt={poll.nomination_closes_at} />}
+          </div>
+
+          {/* Slot dots */}
+          <div className="flex items-center gap-1.5">
+            {Array.from({ length: slotsTotal }).map((_, i) => (
+              <div
+                key={i}
+                className={`h-1.5 rounded-full flex-1 transition-all duration-300 ${i < slotsUsed ? 'bg-accent' : 'bg-line'}`}
+              />
+            ))}
+            <span className="text-xs text-ink-3 ml-2 tabular-nums flex-shrink-0">
+              {slotsUsed}/{slotsTotal}
+            </span>
+          </div>
+
+          {canNominate && (
+            poll.category === 'general' ? (
+              <form onSubmit={handleFreeTextSubmit} className="flex gap-2">
+                <input
+                  className="input flex-1"
+                  value={freeText}
+                  onChange={e => setFreeText(e.target.value)}
+                  placeholder="Nominate something…"
+                />
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="bg-accent hover:bg-accent-hover text-white text-sm font-semibold px-4 rounded-xl transition-colors disabled:opacity-40 flex-shrink-0"
+                >
+                  Add
+                </button>
+              </form>
+            ) : (
+              <SearchInput pollId={poll.id} category={poll.category} onSelect={handleSearchSelect} />
+            )
           )}
-          {error && <p className="text-red-600 text-sm mt-1">{error}</p>}
+
+          {!canNominate && slotsUsed >= slotsTotal && (
+            <p className="text-xs text-ink-3 text-center py-1">All {slotsTotal} nominations used.</p>
+          )}
+
+          {error && <p className="text-danger text-xs">{error}</p>}
         </div>
       )}
 
-      {poll.nominations !== null && (
+      {/* Timer for non-participants */}
+      {!participantId && poll.nomination_closes_at && (
+        <div className="flex justify-end">
+          <Timer closesAt={poll.nomination_closes_at} />
+        </div>
+      )}
+
+      {/* Nominations list */}
+      {poll.nominations !== null ? (
         <div className="space-y-2">
-          {poll.nominations.length === 0 && (
-            <p className="text-gray-400 text-sm">No nominations yet.</p>
+          {poll.nominations.length === 0 ? (
+            <p className="text-ink-3 text-sm text-center py-8">No nominations yet — be the first!</p>
+          ) : (
+            <>
+              <p className="text-xs text-ink-3 font-semibold uppercase tracking-widest px-1">
+                {poll.nominations.length} nomination{poll.nominations.length !== 1 ? 's' : ''}
+              </p>
+              {poll.nominations.map(nom => (
+                <NominationCard
+                  key={nom.id}
+                  nomination={nom}
+                  onDelete={adminToken
+                    ? () => api.deleteNomination(poll.id, nom.id, adminToken).then(onRefetch)
+                    : undefined}
+                />
+              ))}
+            </>
           )}
-          {poll.nominations.map(nom => (
-            <NominationCard key={nom.id} nomination={nom}
-              onDelete={adminToken ? () => api.deleteNomination(poll.id, nom.id, adminToken).then(onRefetch) : undefined} />
-          ))}
         </div>
-      )}
-
-      {poll.nominations === null && (
-        <p className="text-gray-400 text-sm">Nominations are hidden until voting begins.</p>
+      ) : (
+        <p className="text-ink-3 text-sm text-center py-8">Nominations are hidden until voting begins.</p>
       )}
     </div>
   )

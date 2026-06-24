@@ -3,10 +3,22 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import type { Category, VotingMethod } from '../types'
 
+const CATEGORIES: { value: Category; label: string; emoji: string }[] = [
+  { value: 'movie', label: 'Movies', emoji: '🎬' },
+  { value: 'book', label: 'Books', emoji: '📚' },
+  { value: 'general', label: 'General', emoji: '💬' },
+]
+
+const VOTING_METHODS: { value: VotingMethod; label: string; description: string }[] = [
+  { value: 'ranked_choice', label: 'Ranked Choice', description: 'Drag to rank, instant runoff' },
+  { value: 'ranked_pairs', label: 'Ranked Pairs', description: 'Tideman method, most fair' },
+  { value: 'plurality', label: 'Plurality', description: 'Pick one, most votes wins' },
+]
+
 export function CreatePoll() {
   const navigate = useNavigate()
   const [title, setTitle] = useState('')
-  const [category, setCategory] = useState<Category>('general')
+  const [category, setCategory] = useState<Category>('movie')
   const [votingMethod, setVotingMethod] = useState<VotingMethod>('ranked_choice')
   const [maxNominations, setMaxNominations] = useState(3)
   const [nominationsVisible, setNominationsVisible] = useState(true)
@@ -17,7 +29,7 @@ export function CreatePoll() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!title.trim()) { setError('Title is required'); return }
+    if (!title.trim()) { setError('Give your poll a title'); return }
     setSubmitting(true)
     setError(null)
     try {
@@ -30,7 +42,6 @@ export function CreatePoll() {
         votes_visible: votesVisible,
         nomination_closes_at: timerMinutes ? Date.now() + Number(timerMinutes) * 60 * 1000 : null,
       })
-      // Store admin token in sessionStorage
       sessionStorage.setItem(`poll_admin_${result.id}`, result.admin_token)
       navigate(`/p/${result.id}?admin=${result.admin_token}`, { replace: true })
     } catch (e) {
@@ -41,73 +52,128 @@ export function CreatePoll() {
   }
 
   return (
-    <div className="max-w-lg mx-auto py-12 px-4">
-      <h1 className="text-3xl font-bold mb-8">New Poll</h1>
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div>
-          <label className="block text-sm font-medium mb-1">Poll title</label>
-          <input
-            className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            value={title} onChange={e => setTitle(e.target.value)} placeholder="What should we watch next?" />
-        </div>
+    <div className="max-w-md mx-auto py-10 px-4">
+      <div className="card p-7">
+        <h1 className="text-3xl font-extrabold text-ink tracking-tight mb-1">New poll</h1>
+        <p className="text-ink-3 text-sm mb-7">Share a link, let the group decide.</p>
 
-        <div>
-          <label className="block text-sm font-medium mb-2">Category</label>
-          <div className="flex gap-3">
-            {(['book', 'movie', 'general'] as Category[]).map(cat => (
-              <button key={cat} type="button"
-                className={`flex-1 py-2 rounded-lg border-2 text-sm font-medium ${category === cat ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200'}`}
-                onClick={() => setCategory(cat)}>
-                {cat === 'book' ? '📚 Book Club' : cat === 'movie' ? '🎬 Movies' : '💬 General'}
-              </button>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Title */}
+          <div>
+            <label className="block text-xs font-semibold text-ink-2 uppercase tracking-widest mb-2">
+              Title
+            </label>
+            <input
+              className="input"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder="What should we watch next?"
+            />
+          </div>
+
+          {/* Category */}
+          <div>
+            <label className="block text-xs font-semibold text-ink-2 uppercase tracking-widest mb-2">
+              Category
+            </label>
+            <div className="flex gap-2">
+              {CATEGORIES.map(cat => (
+                <button
+                  key={cat.value}
+                  type="button"
+                  onClick={() => setCategory(cat.value)}
+                  className={`flex-1 flex flex-col items-center gap-1 py-3 rounded-xl border-2 text-sm font-semibold transition-colors ${
+                    category === cat.value
+                      ? 'border-accent bg-accent-muted text-ink'
+                      : 'border-line bg-surface text-ink-3 hover:border-line-bright hover:text-ink-2'
+                  }`}
+                >
+                  <span className="text-xl">{cat.emoji}</span>
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Voting method */}
+          <div>
+            <label className="block text-xs font-semibold text-ink-2 uppercase tracking-widest mb-2">
+              Voting method
+            </label>
+            <div className="space-y-2">
+              {VOTING_METHODS.map(method => (
+                <button
+                  key={method.value}
+                  type="button"
+                  onClick={() => setVotingMethod(method.value)}
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 text-left transition-colors ${
+                    votingMethod === method.value
+                      ? 'border-accent bg-accent-muted'
+                      : 'border-line bg-surface hover:border-line-bright'
+                  }`}
+                >
+                  <span className="font-semibold text-sm text-ink">{method.label}</span>
+                  <span className="text-xs text-ink-3">{method.description}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Nominations + Timer */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-ink-2 uppercase tracking-widest mb-2">
+                Noms per person
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={10}
+                className="input"
+                value={maxNominations}
+                onChange={e => setMaxNominations(Number(e.target.value))}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-ink-2 uppercase tracking-widest mb-2">
+                Timer (min)
+              </label>
+              <input
+                type="number"
+                min={1}
+                className="input"
+                value={timerMinutes}
+                onChange={e => setTimerMinutes(e.target.value === '' ? '' : Number(e.target.value))}
+                placeholder="None"
+              />
+            </div>
+          </div>
+
+          {/* Visibility toggles */}
+          <div className="space-y-3">
+            {[
+              { checked: nominationsVisible, onChange: setNominationsVisible, label: 'Show nominations live during nomination phase' },
+              { checked: votesVisible, onChange: setVotesVisible, label: 'Show live vote counts during voting' },
+            ].map(({ checked, onChange, label }) => (
+              <label key={label} className="flex items-center gap-3 cursor-pointer group">
+                <div
+                  onClick={() => onChange(!checked)}
+                  className={`w-10 h-6 rounded-full flex-shrink-0 transition-colors relative cursor-pointer ${checked ? 'bg-accent' : 'bg-surface border border-line'}`}
+                >
+                  <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${checked ? 'left-5' : 'left-1'}`} />
+                </div>
+                <span className="text-sm text-ink-2 group-hover:text-ink transition-colors">{label}</span>
+              </label>
             ))}
           </div>
-        </div>
 
-        <div>
-          <label className="block text-sm font-medium mb-1">Voting method</label>
-          <select className="w-full border rounded-lg px-3 py-2"
-            value={votingMethod} onChange={e => setVotingMethod(e.target.value as VotingMethod)}>
-            <option value="plurality">Plurality (most votes wins)</option>
-            <option value="ranked_choice">Ranked Choice (instant runoff)</option>
-            <option value="ranked_pairs">Ranked Pairs (Tideman method)</option>
-          </select>
-        </div>
+          {error && <p className="text-danger text-sm">{error}</p>}
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Max nominations per person</label>
-            <input type="number" min={1} max={10}
-              className="w-full border rounded-lg px-3 py-2"
-              value={maxNominations} onChange={e => setMaxNominations(Number(e.target.value))} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Nomination timer (minutes, optional)</label>
-            <input type="number" min={1}
-              className="w-full border rounded-lg px-3 py-2"
-              value={timerMinutes} onChange={e => setTimerMinutes(e.target.value === '' ? '' : Number(e.target.value))}
-              placeholder="No timer" />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" checked={nominationsVisible} onChange={e => setNominationsVisible(e.target.checked)} />
-            <span className="text-sm">Show nominations live during nomination phase</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" checked={votesVisible} onChange={e => setVotesVisible(e.target.checked)} />
-            <span className="text-sm">Show live results during voting phase</span>
-          </label>
-        </div>
-
-        {error && <p className="text-red-600 text-sm">{error}</p>}
-
-        <button type="submit" disabled={submitting}
-          className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold disabled:opacity-50">
-          {submitting ? 'Creating…' : 'Create Poll →'}
-        </button>
-      </form>
+          <button type="submit" disabled={submitting} className="btn-primary">
+            {submitting ? 'Creating…' : 'Create poll →'}
+          </button>
+        </form>
+      </div>
     </div>
   )
 }
