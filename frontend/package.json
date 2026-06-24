@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "dev": "vite",
-    "build": "npx tsc && vite build",
+    "build": "./node_modules/.bin/tsc && vite build",
     "preview": "vite preview",
     "test": "vitest run"
   },
