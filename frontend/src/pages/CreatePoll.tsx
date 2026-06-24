@@ -194,6 +194,31 @@ export function CreatePoll() {
     </div>
   )
 
+  const activePolls = recentPolls.filter(p => p.phase !== 'closed')
+  const closedPolls = recentPolls.filter(p => p.phase === 'closed')
+
+  const renderPollLink = (poll: PublicPollSummary) => {
+    const phase = PHASE_LABEL[poll.phase]
+    return (
+      <Link
+        key={poll.id}
+        to={`/p/${poll.id}`}
+        className="flex items-center gap-3 p-3 rounded-xl bg-raised border border-line hover:border-line-bright transition-colors group"
+      >
+        <span className="text-lg flex-shrink-0">{CATEGORY_EMOJI[poll.category]}</span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-ink truncate group-hover:text-accent transition-colors">
+            {poll.title}
+          </p>
+          <p className="text-xs text-ink-3">
+            {poll.participant_count} participant{poll.participant_count !== 1 ? 's' : ''}
+          </p>
+        </div>
+        <span className={`badge flex-shrink-0 ${phase.classes}`}>{phase.label}</span>
+      </Link>
+    )
+  }
+
   if (recentPolls.length === 0) {
     return (
       <div className="max-w-md mx-auto py-10 px-4">
@@ -206,31 +231,19 @@ export function CreatePoll() {
     <div className="max-w-3xl mx-auto py-10 px-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
         {form}
-        <div className="card p-5 space-y-3">
-          <p className="text-xs font-bold text-ink-3 uppercase tracking-widest">Active polls</p>
-          <div className="space-y-2">
-            {recentPolls.map(poll => {
-              const phase = PHASE_LABEL[poll.phase]
-              return (
-                <Link
-                  key={poll.id}
-                  to={`/p/${poll.id}`}
-                  className="flex items-center gap-3 p-3 rounded-xl bg-raised border border-line hover:border-line-bright transition-colors group"
-                >
-                  <span className="text-lg flex-shrink-0">{CATEGORY_EMOJI[poll.category]}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-ink truncate group-hover:text-accent transition-colors">
-                      {poll.title}
-                    </p>
-                    <p className="text-xs text-ink-3">
-                      {poll.participant_count} participant{poll.participant_count !== 1 ? 's' : ''}
-                    </p>
-                  </div>
-                  <span className={`badge flex-shrink-0 ${phase.classes}`}>{phase.label}</span>
-                </Link>
-              )
-            })}
-          </div>
+        <div className="space-y-4">
+          {activePolls.length > 0 && (
+            <div className="card p-5 space-y-3">
+              <p className="text-xs font-bold text-ink-3 uppercase tracking-widest">Active polls</p>
+              <div className="space-y-2">{activePolls.map(renderPollLink)}</div>
+            </div>
+          )}
+          {closedPolls.length > 0 && (
+            <div className="card p-5 space-y-3">
+              <p className="text-xs font-bold text-ink-3 uppercase tracking-widest">Recently closed</p>
+              <div className="space-y-2">{closedPolls.map(renderPollLink)}</div>
+            </div>
+          )}
         </div>
       </div>
     </div>
