@@ -44,6 +44,15 @@ describe('GET /polls/:id', () => {
     const res = await SELF.fetch('http://example.com/polls/notreal')
     expect(res.status).toBe(404)
   })
+
+  it('auto-advances phase to voting when nomination timer has expired', async () => {
+    const pastTime = Date.now() - 1000
+    const { id } = await seedPoll({ nomination_closes_at: pastTime })
+    const res = await SELF.fetch(`http://example.com/polls/${id}`)
+    expect(res.status).toBe(200)
+    const body = await res.json() as Record<string, unknown>
+    expect(body.phase).toBe('voting')
+  })
 })
 
 describe('PATCH /polls/:id/phase', () => {

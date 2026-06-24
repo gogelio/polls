@@ -12,47 +12,64 @@ const VALID_TRANSITIONS: Record<Phase, Phase | null> = {
 }
 
 pollsRouter.post('/', async (c) => {
-  const body = await c.req.json<{
-    title: string
-    category: string
-    voting_method: string
-    max_nominations: number
-    nominations_visible: boolean
-    votes_visible: boolean
-    nomination_closes_at: number | null
-  }>()
+  try {
+    const body = await c.req.json<{
+      title: string
+      category: string
+      voting_method: string
+      max_nominations: number
+      nominations_visible: boolean
+      votes_visible: boolean
+      nomination_closes_at: number | null
+    }>()
 
-  const id = nanoid(8)
-  const adminToken = nanoid(24)
-  const now = Date.now()
+    if (!body.title?.trim()) return c.json({ error: 'title is required' }, 400)
+    const VALID_CATEGORIES = ['book', 'movie', 'general']
+    const VALID_METHODS = ['plurality', 'ranked_choice', 'ranked_pairs']
+    if (!VALID_CATEGORIES.includes(body.category)) return c.json({ error: 'invalid category' }, 400)
+    if (!VALID_METHODS.includes(body.voting_method)) return c.json({ error: 'invalid voting_method' }, 400)
+    if (!body.max_nominations || body.max_nominations < 1) return c.json({ error: 'max_nominations must be >= 1' }, 400)
 
-  await c.env.DB.prepare(
-    `INSERT INTO polls (id, admin_token, title, category, voting_method, max_nominations,
-      nominations_visible, votes_visible, nomination_closes_at, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).bind(
-    id, adminToken, body.title, body.category, body.voting_method,
-    body.max_nominations, body.nominations_visible ? 1 : 0,
-    body.votes_visible ? 1 : 0, body.nomination_closes_at ?? null, now
-  ).run()
+    const id = nanoid(8)
+    const adminToken = nanoid(24)
+    const now = Date.now()
 
-  const base = new URL(c.req.url).origin
-  return c.json({
-    id,
-    admin_token: adminToken,
-    participant_url: `${base}/p/${id}`,
-    admin_url: `${base}/p/${id}?admin=${adminToken}`,
-  }, 201)
+    await c.env.DB.prepare(
+      `INSERT INTO polls (id, admin_token, title, category, voting_method, max_nominations,
+        nominations_visible, votes_visible, nomination_closes_at, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      id, adminToken, body.title, body.category, body.voting_method,
+      body.max_nominations, body.nominations_visible ? 1 : 0,
+      body.votes_visible ? 1 : 0,
+      // nomination_closes_at is stored as Unix timestamp in milliseconds
+      body.nomination_closes_at ?? null,
+      now
+    ).run()
+
+    const base = new URL(c.req.url).origin
+    return c.json({
+      id,
+      admin_token: adminToken,
+      participant_url: `${base}/p/${id}`,
+      admin_url: `${base}/p/${id}?admin=${adminToken}`,
+    }, 201)
+  } catch (e) {
+    if (e instanceof SyntaxError) return c.json({ error: 'Invalid JSON body' }, 400)
+    throw e
+  }
 })
 
 pollsRouter.get('/:id', async (c) => {
   const id = c.req.param('id')
-  let poll = await c.env.DB.prepare('SELECT * FROM polls WHERE id = ?').bind(id).first<Poll>()
+  let poll = await c.env.DB.prepare(
+    'SELECT id, title, category, voting_method, phase, max_nominations, nominations_visible, votes_visible, nomination_closes_at, created_at FROM polls WHERE id = ?'
+  ).bind(id).first<Poll>()
   if (!poll) return c.json({ error: 'Poll not found' }, 404)
 
   // Auto-advance phase if nomination timer has expired
   if (poll.phase === 'nominating' && poll.nomination_closes_at && Date.now() > poll.nomination_closes_at) {
-    await c.env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(id).run()
+    await c.env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ? AND phase = 'nominating'").bind(id).run()
     poll = { ...poll, phase: 'voting' }
   }
 

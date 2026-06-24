@@ -35,8 +35,8 @@ export async function seedPoll(overrides: Record<string, unknown> = {}) {
   const id = nanoid(8)
   const adminToken = nanoid(24)
   await env.DB.prepare(
-    `INSERT INTO polls (id, admin_token, title, category, voting_method, max_nominations, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO polls (id, admin_token, title, category, voting_method, max_nominations, nomination_closes_at, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(
     overrides.id ?? id,
     overrides.admin_token ?? adminToken,
@@ -44,6 +44,7 @@ export async function seedPoll(overrides: Record<string, unknown> = {}) {
     overrides.category ?? 'general',
     overrides.voting_method ?? 'plurality',
     overrides.max_nominations ?? 3,
+    overrides.nomination_closes_at ?? null,
     Date.now()
   ).run()
   return { id: (overrides.id ?? id) as string, adminToken: (overrides.admin_token ?? adminToken) as string }

@@ -27,10 +27,18 @@ export async function adminAuth(
   if (!adminToken) return c.json({ error: 'Missing admin query param' }, 401)
 
   const poll = await c.env.DB.prepare(
-    'SELECT id FROM polls WHERE id = ? AND admin_token = ?'
-  ).bind(pollId, adminToken).first()
+    'SELECT admin_token FROM polls WHERE id = ?'
+  ).bind(pollId).first<{ admin_token: string }>()
 
-  if (!poll) return c.json({ error: 'Invalid admin token' }, 401)
+  if (!poll) return c.json({ error: 'Poll not found' }, 404)
+
+  // Constant-time comparison to prevent timing attacks
+  const encoder = new TextEncoder()
+  const a = encoder.encode(adminToken)
+  const b = encoder.encode(poll.admin_token)
+  if (a.length !== b.length) return c.json({ error: 'Invalid admin token' }, 401)
+  const equal = crypto.subtle.timingSafeEqual(a, b)
+  if (!equal) return c.json({ error: 'Invalid admin token' }, 401)
 
   await next()
 }
