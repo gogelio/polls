@@ -25,7 +25,10 @@ CREATE TABLE IF NOT EXISTS votes (
 );`
 
 export async function applySchema() {
-  await env.DB.exec(SCHEMA)
+  const statements = SCHEMA.split(';').map(s => s.replace(/\s+/g, ' ').trim()).filter(Boolean)
+  for (const sql of statements) {
+    await env.DB.exec(sql + ';')
+  }
 }
 
 export async function seedPoll(overrides: Record<string, unknown> = {}) {
