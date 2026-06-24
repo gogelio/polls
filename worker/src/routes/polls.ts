@@ -11,6 +11,22 @@ const VALID_TRANSITIONS: Record<Phase, Phase | null> = {
   closed: null,
 }
 
+pollsRouter.get('/', async (c) => {
+  const { results: open } = await c.env.DB.prepare(
+    `SELECT id, title, category, phase, created_at,
+       (SELECT COUNT(*) FROM participants WHERE poll_id = polls.id) as participant_count
+     FROM polls WHERE is_public = 1 AND phase != 'closed' ORDER BY created_at DESC`
+  ).all<{ id: string; title: string; category: string; phase: string; created_at: number; participant_count: number }>()
+
+  const { results: closed } = await c.env.DB.prepare(
+    `SELECT id, title, category, phase, created_at,
+       (SELECT COUNT(*) FROM participants WHERE poll_id = polls.id) as participant_count
+     FROM polls WHERE is_public = 1 AND phase = 'closed' ORDER BY created_at DESC LIMIT 3`
+  ).all<{ id: string; title: string; category: string; phase: string; created_at: number; participant_count: number }>()
+
+  return c.json([...open, ...closed])
+})
+
 pollsRouter.post('/', async (c) => {
   try {
     const body = await c.req.json<{
@@ -20,6 +36,7 @@ pollsRouter.post('/', async (c) => {
       max_nominations: number
       nominations_visible: boolean
       votes_visible: boolean
+      is_public: boolean
       nomination_closes_at: number | null
     }>()
 
@@ -33,15 +50,17 @@ pollsRouter.post('/', async (c) => {
     const id = nanoid(8)
     const adminToken = nanoid(24)
     const now = Date.now()
+    const isPublic = body.is_public !== false
 
     await c.env.DB.prepare(
       `INSERT INTO polls (id, admin_token, title, category, voting_method, max_nominations,
-        nominations_visible, votes_visible, nomination_closes_at, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        nominations_visible, votes_visible, is_public, nomination_closes_at, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(
       id, adminToken, body.title, body.category, body.voting_method,
       body.max_nominations, body.nominations_visible ? 1 : 0,
       body.votes_visible ? 1 : 0,
+      isPublic ? 1 : 0,
       // nomination_closes_at is stored as Unix timestamp in milliseconds
       body.nomination_closes_at ?? null,
       now
@@ -63,7 +82,7 @@ pollsRouter.post('/', async (c) => {
 pollsRouter.get('/:id', async (c) => {
   const id = c.req.param('id')
   let poll = await c.env.DB.prepare(
-    'SELECT id, title, category, voting_method, phase, max_nominations, nominations_visible, votes_visible, nomination_closes_at, created_at FROM polls WHERE id = ?'
+    'SELECT id, title, category, voting_method, phase, max_nominations, nominations_visible, votes_visible, is_public, nomination_closes_at, created_at FROM polls WHERE id = ?'
   ).bind(id).first<Poll>()
   if (!poll) return c.json({ error: 'Poll not found' }, 404)
 
@@ -98,6 +117,7 @@ pollsRouter.get('/:id', async (c) => {
     max_nominations: poll.max_nominations,
     nominations_visible: poll.nominations_visible === 1,
     votes_visible: poll.votes_visible === 1,
+    is_public: poll.is_public === 1,
     nomination_closes_at: poll.nomination_closes_at,
     nominations,
     participant_count: participantCountRow?.count ?? 0,

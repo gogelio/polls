@@ -18,6 +18,7 @@ export interface Poll {
   max_nominations: number
   nominations_visible: number
   votes_visible: number
+  is_public: number
   nomination_closes_at: number | null
   created_at: number
 }

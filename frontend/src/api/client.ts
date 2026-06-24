@@ -1,4 +1,4 @@
-import type { Poll, PollResults, SearchResult } from '../types'
+import type { Poll, PollResults, PublicPollSummary, SearchResult } from '../types'
 
 const BASE = import.meta.env.VITE_API_URL ?? '/api'
 
@@ -24,6 +24,11 @@ async function throwIfError(res: Response) {
 }
 
 export const api = {
+  listPublicPolls: async (): Promise<PublicPollSummary[]> => {
+    const res = await throwIfError(await fetch(`${BASE}/polls`))
+    return res.json()
+  },
+
   createPoll: async (data: {
     title: string
     category: string
@@ -31,6 +36,7 @@ export const api = {
     max_nominations: number
     nominations_visible: boolean
     votes_visible: boolean
+    is_public: boolean
     nomination_closes_at: number | null
   }) => {
     const res = await throwIfError(await fetch(`${BASE}/polls`, {

@@ -28,8 +28,18 @@ export interface Poll {
   max_nominations: number
   nominations_visible: boolean
   votes_visible: boolean
+  is_public: boolean
   nomination_closes_at: number | null
   nominations: PollNomination[] | null
+  participant_count: number
+  created_at: number
+}
+
+export interface PublicPollSummary {
+  id: string
+  title: string
+  category: Category
+  phase: Phase
   participant_count: number
   created_at: number
 }
