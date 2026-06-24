@@ -10,6 +10,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import type { Poll, PollNomination, NominationMetadata } from '../types'
 import { api } from '../api/client'
+import { ResultsView } from './ResultsView'
 
 interface SortableItemProps { nomination: PollNomination; rank: number }
 
@@ -98,6 +99,17 @@ export function VotingPhase({ poll, onRefetch }: VotingPhaseProps) {
   }
 
   if (submitted) {
+    if (poll.votes_visible) {
+      return (
+        <div className="space-y-4">
+          <div className="card px-5 py-3 flex items-center gap-3">
+            <span className="text-success text-lg">✓</span>
+            <p className="text-sm font-semibold text-ink">Vote submitted! Live standings below.</p>
+          </div>
+          <ResultsView poll={poll} />
+        </div>
+      )
+    }
     return (
       <div className="card p-10 text-center">
         <div className="text-5xl mb-4">✓</div>
