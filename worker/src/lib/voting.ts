@@ -49,7 +49,7 @@ function buildBallots(votes: VoteRow[]): Map<string, string[]> {
 export function rankedChoice(votes: VoteRow[], nominations: NominationRow[]): RankedResult[] {
   const ballots = Array.from(buildBallots(votes).values())
   const remaining = new Set(nominations.map(n => n.id))
-  const eliminationOrder: string[] = []
+  const eliminated: Array<{ id: string; score: number; percentage: number }> = []
 
   while (remaining.size > 1) {
     const counts = new Map<string, number>()
@@ -65,39 +65,43 @@ export function rankedChoice(votes: VoteRow[], nominations: NominationRow[]): Ra
       if (total > 0 && count > total / 2) { winner = id; break }
     }
     if (winner) {
-      const nonWinnersRemaining = [...remaining].filter(id => id !== winner)
-      return [
-        { nomination_id: winner, title: nominations.find(n => n.id === winner)!.title,
-          metadata: nominations.find(n => n.id === winner)!.metadata,
-          score: counts.get(winner)!, percentage: Math.round((counts.get(winner)! / total) * 100) },
-        ...nonWinnersRemaining.map(id => {
+      const nonWinnersRemaining = [...remaining]
+        .filter(id => id !== winner)
+        .map(id => {
           const nom = nominations.find(n => n.id === id)!
           const count = counts.get(id) ?? 0
           return { nomination_id: id, title: nom.title, metadata: nom.metadata,
             score: count, percentage: Math.round((count / total) * 100) }
-        }).sort((a, b) => b.score - a.score),
-        ...[...eliminationOrder].reverse().map(id => {
-          const nom = nominations.find(n => n.id === id)!
-          return { nomination_id: id, title: nom.title, metadata: nom.metadata, score: 0, percentage: 0 }
+        })
+        .sort((a, b) => b.score - a.score)
+      const winNom = nominations.find(n => n.id === winner)!
+      return [
+        { nomination_id: winner, title: winNom.title, metadata: winNom.metadata,
+          score: counts.get(winner)!, percentage: Math.round((counts.get(winner)! / total) * 100) },
+        ...nonWinnersRemaining,
+        ...[...eliminated].reverse().map(e => {
+          const nom = nominations.find(n => n.id === e.id)!
+          return { nomination_id: e.id, title: nom.title, metadata: nom.metadata,
+            score: e.score, percentage: e.percentage }
         }),
       ]
     }
 
     // Eliminate the nomination with fewest first-choice votes.
-    // For ties, eliminate the one that appears first in iteration order (nominations order).
+    // For ties, eliminate the one that appears first in nominations order.
     let minCount = Infinity, toEliminate = ''
     for (const id of remaining) {
       const count = counts.get(id) ?? 0
       if (count < minCount) { minCount = count; toEliminate = id }
     }
-    eliminationOrder.push(toEliminate)
+    eliminated.push({ id: toEliminate, score: minCount,
+      percentage: total > 0 ? Math.round((minCount / total) * 100) : 0 })
     remaining.delete(toEliminate)
   }
 
   const [winnerId] = remaining
   const winNom = nominations.find(n => n.id === winnerId)!
-  const finalCounts = new Map<string, number>()
-  for (const id of remaining) finalCounts.set(id, 0)
+  const finalCounts = new Map<string, number>([[winnerId!, 0]])
   for (const ballot of ballots) {
     const first = ballot.find(id => remaining.has(id))
     if (first) finalCounts.set(first, (finalCounts.get(first) ?? 0) + 1)
@@ -107,9 +111,10 @@ export function rankedChoice(votes: VoteRow[], nominations: NominationRow[]): Ra
   return [
     { nomination_id: winnerId!, title: winNom.title, metadata: winNom.metadata,
       score: winnerCount, percentage: finalTotal > 0 ? Math.round((winnerCount / finalTotal) * 100) : 100 },
-    ...[...eliminationOrder].reverse().map(id => {
-      const nom = nominations.find(n => n.id === id)!
-      return { nomination_id: id, title: nom.title, metadata: nom.metadata, score: 0, percentage: 0 }
+    ...[...eliminated].reverse().map(e => {
+      const nom = nominations.find(n => n.id === e.id)!
+      return { nomination_id: e.id, title: nom.title, metadata: nom.metadata,
+        score: e.score, percentage: e.percentage }
     }),
   ]
 }
