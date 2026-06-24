@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import type { Poll, PollResults, NominationMetadata } from '../types'
 import { api } from '../api/client'
 
 interface ResultsViewProps { poll: Poll }
 
 export function ResultsView({ poll }: ResultsViewProps) {
+  const [searchParams] = useSearchParams()
+  const adminToken = searchParams.get('admin')
+  const publicUrl = `${window.location.origin}${window.location.pathname}`
   const [results, setResults] = useState<PollResults | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -69,12 +73,22 @@ export function ResultsView({ poll }: ResultsViewProps) {
         ))}
       </div>
 
-      <button
-        onClick={() => navigator.clipboard.writeText(window.location.href)}
-        className="text-sm text-accent font-semibold hover:underline"
-      >
-        🔗 Copy results link
-      </button>
+      <div className="card p-4 flex gap-4">
+        <button
+          onClick={() => navigator.clipboard.writeText(publicUrl)}
+          className="text-sm text-accent font-semibold hover:underline"
+        >
+          🔗 Copy public results link
+        </button>
+        {adminToken && (
+          <button
+            onClick={() => navigator.clipboard.writeText(`${publicUrl}?admin=${adminToken}`)}
+            className="text-sm text-ink-3 font-semibold hover:underline"
+          >
+            🔒 Copy admin link
+          </button>
+        )}
+      </div>
     </div>
   )
 }
