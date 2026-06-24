@@ -13,6 +13,7 @@ export function SearchInput({ pollId, category, onSelect }: SearchInputProps) {
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
   const [showResults, setShowResults] = useState(false)
+  const [searchError, setSearchError] = useState<string | null>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -28,15 +29,20 @@ export function SearchInput({ pollId, category, onSelect }: SearchInputProps) {
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
-    if (!query.trim()) { setResults([]); setShowResults(false); return }
+    if (!query.trim()) { setResults([]); setShowResults(false); setSearchError(null); return }
     debounceRef.current = setTimeout(async () => {
       setLoading(true)
+      setSearchError(null)
       try {
         const data = category === 'book'
           ? await api.searchBooks(pollId, query)
           : await api.searchMovies(pollId, query)
         setResults(data)
         setShowResults(data.length > 0)
+      } catch (e) {
+        setSearchError(e instanceof Error ? e.message : 'Search failed')
+        setResults([])
+        setShowResults(false)
       } finally {
         setLoading(false)
       }
@@ -65,6 +71,10 @@ export function SearchInput({ pollId, category, onSelect }: SearchInputProps) {
           </span>
         )}
       </div>
+
+      {searchError && (
+        <p className="text-danger text-xs mt-1 px-1">{searchError}</p>
+      )}
 
       {showResults && results.length > 0 && (
         <div className="absolute z-50 w-full mt-1.5 bg-raised border border-line rounded-xl shadow-2xl shadow-black/60 overflow-hidden">

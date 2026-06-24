@@ -6,6 +6,7 @@ import { NominationPhase } from '../components/NominationPhase'
 import { VotingPhase } from '../components/VotingPhase'
 import { ResultsView } from '../components/ResultsView'
 import { AdminControls } from '../components/AdminControls'
+import { NominationCard } from '../components/NominationCard'
 import type { Phase } from '../types'
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -73,51 +74,88 @@ export function PollPage() {
   const needsJoin = !participantId && !hasToken
   const phase = PHASE_BADGE[poll.phase]
 
-  return (
-    <div className="max-w-lg mx-auto py-8 px-4 space-y-4">
-      {/* Poll header */}
-      <div className="card p-6">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 mb-2 flex-wrap">
-              <span className="badge text-ink-3 bg-surface border border-line">
-                {CATEGORY_LABEL[poll.category]}
-              </span>
-              <span className={`badge ${phase.classes}`}>
-                {phase.label}
-              </span>
-            </div>
-            <h1 className="text-2xl font-extrabold text-ink tracking-tight text-wrap-balance">
-              {poll.title}
-            </h1>
-            <p className="text-ink-3 text-sm mt-1">
-              {poll.participant_count} participant{poll.participant_count !== 1 ? 's' : ''}
-            </p>
-          </div>
-        </div>
+  const pollHeader = (
+    <div className="card p-6">
+      <div className="flex items-center gap-2 mb-2 flex-wrap">
+        <span className="badge text-ink-3 bg-surface border border-line">
+          {CATEGORY_LABEL[poll.category]}
+        </span>
+        <span className={`badge ${phase.classes}`}>
+          {phase.label}
+        </span>
       </div>
+      <h1 className="text-2xl font-extrabold text-ink tracking-tight text-wrap-balance">
+        {poll.title}
+      </h1>
+      <p className="text-ink-3 text-sm mt-1">
+        {poll.participant_count} participant{poll.participant_count !== 1 ? 's' : ''}
+      </p>
+    </div>
+  )
 
-      {/* Join form */}
-      {needsJoin && (
-        <div className="card p-6">
-          <p className="font-bold text-ink mb-4">Join this poll</p>
-          <form onSubmit={handleJoin} className="space-y-3">
-            <input
-              className="input"
-              value={participantName}
-              onChange={e => setParticipantName(e.target.value)}
-              placeholder="Your name"
-              autoFocus
-            />
-            {joinError && <p className="text-danger text-sm">{joinError}</p>}
-            <button type="submit" disabled={joining} className="btn-primary">
-              {joining ? 'Joining…' : 'Join →'}
-            </button>
-          </form>
+  const rightPanel = poll.phase === 'voting' && poll.votes_visible ? (
+    <ResultsView poll={poll} />
+  ) : (
+    <div className="card p-5 space-y-3">
+      <p className="text-xs font-bold text-ink-3 uppercase tracking-widest">
+        {poll.phase === 'voting' ? 'What you\'re voting on' : 'Nominations so far'}
+      </p>
+      {poll.nominations === null ? (
+        <p className="text-ink-3 text-sm">Nominations are hidden until voting begins.</p>
+      ) : poll.nominations.length === 0 ? (
+        <p className="text-ink-3 text-sm">No nominations yet.</p>
+      ) : (
+        <div className="space-y-2">
+          {poll.nominations.map(nom => (
+            <NominationCard key={nom.id} nomination={nom} />
+          ))}
         </div>
       )}
+    </div>
+  )
 
-      {/* Phase content */}
+  if (poll.phase === 'closed') {
+    return (
+      <div className="max-w-lg mx-auto py-8 px-4 space-y-4">
+        {pollHeader}
+        <ResultsView poll={poll} />
+        {adminToken && <AdminControls poll={poll} adminToken={adminToken} onRefetch={refetch} />}
+      </div>
+    )
+  }
+
+  if (needsJoin) {
+    return (
+      <div className="max-w-3xl mx-auto py-8 px-4 space-y-4">
+        {pollHeader}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+          <div className="card p-6">
+            <p className="font-bold text-ink mb-4">Join this poll</p>
+            <form onSubmit={handleJoin} className="space-y-3">
+              <input
+                className="input"
+                value={participantName}
+                onChange={e => setParticipantName(e.target.value)}
+                placeholder="Your name"
+                autoFocus
+              />
+              {joinError && <p className="text-danger text-sm">{joinError}</p>}
+              <button type="submit" disabled={joining} className="btn-primary">
+                {joining ? 'Joining…' : 'Join →'}
+              </button>
+            </form>
+          </div>
+          {rightPanel}
+        </div>
+        {adminToken && <AdminControls poll={poll} adminToken={adminToken} onRefetch={refetch} />}
+      </div>
+    )
+  }
+
+  return (
+    <div className="max-w-lg mx-auto py-8 px-4 space-y-4">
+      {pollHeader}
+
       {poll.phase === 'nominating' && (
         <NominationPhase
           poll={poll}
@@ -132,17 +170,11 @@ export function PollPage() {
         <VotingPhase poll={poll} onRefetch={refetch} />
       )}
 
-      {poll.phase === 'voting' && !participantId && !needsJoin && (
+      {poll.phase === 'voting' && !participantId && (
         <p className="text-ink-3 text-sm text-center py-8">Loading your session…</p>
       )}
 
-      {poll.phase === 'voting' && needsJoin && (
-        <p className="text-ink-3 text-sm text-center py-8">Join above to vote.</p>
-      )}
-
-      {poll.phase === 'closed' && <ResultsView poll={poll} />}
-
-      {adminToken && poll.phase !== 'closed' && (
+      {adminToken && (
         <AdminControls poll={poll} adminToken={adminToken} onRefetch={refetch} />
       )}
     </div>

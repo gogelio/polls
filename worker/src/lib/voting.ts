@@ -65,10 +65,17 @@ export function rankedChoice(votes: VoteRow[], nominations: NominationRow[]): Ra
       if (total > 0 && count > total / 2) { winner = id; break }
     }
     if (winner) {
-      const winNom = nominations.find(n => n.id === winner)!
+      const nonWinnersRemaining = [...remaining].filter(id => id !== winner)
       return [
-        { nomination_id: winner, title: winNom.title, metadata: winNom.metadata,
+        { nomination_id: winner, title: nominations.find(n => n.id === winner)!.title,
+          metadata: nominations.find(n => n.id === winner)!.metadata,
           score: counts.get(winner)!, percentage: Math.round((counts.get(winner)! / total) * 100) },
+        ...nonWinnersRemaining.map(id => {
+          const nom = nominations.find(n => n.id === id)!
+          const count = counts.get(id) ?? 0
+          return { nomination_id: id, title: nom.title, metadata: nom.metadata,
+            score: count, percentage: Math.round((count / total) * 100) }
+        }).sort((a, b) => b.score - a.score),
         ...[...eliminationOrder].reverse().map(id => {
           const nom = nominations.find(n => n.id === id)!
           return { nomination_id: id, title: nom.title, metadata: nom.metadata, score: 0, percentage: 0 }
@@ -89,8 +96,17 @@ export function rankedChoice(votes: VoteRow[], nominations: NominationRow[]): Ra
 
   const [winnerId] = remaining
   const winNom = nominations.find(n => n.id === winnerId)!
+  const finalCounts = new Map<string, number>()
+  for (const id of remaining) finalCounts.set(id, 0)
+  for (const ballot of ballots) {
+    const first = ballot.find(id => remaining.has(id))
+    if (first) finalCounts.set(first, (finalCounts.get(first) ?? 0) + 1)
+  }
+  const finalTotal = Array.from(finalCounts.values()).reduce((a, b) => a + b, 0)
+  const winnerCount = finalCounts.get(winnerId!) ?? 0
   return [
-    { nomination_id: winnerId!, title: winNom.title, metadata: winNom.metadata, score: 1, percentage: 100 },
+    { nomination_id: winnerId!, title: winNom.title, metadata: winNom.metadata,
+      score: winnerCount, percentage: finalTotal > 0 ? Math.round((winnerCount / finalTotal) * 100) : 100 },
     ...[...eliminationOrder].reverse().map(id => {
       const nom = nominations.find(n => n.id === id)!
       return { nomination_id: id, title: nom.title, metadata: nom.metadata, score: 0, percentage: 0 }

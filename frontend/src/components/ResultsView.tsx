@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import type { Poll, PollResults, NominationMetadata } from '../types'
 import { api } from '../api/client'
@@ -12,11 +12,24 @@ export function ResultsView({ poll }: ResultsViewProps) {
   const [results, setResults] = useState<PollResults | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
   useEffect(() => {
-    api.getResults(poll.id)
-      .then(setResults)
-      .catch(e => setError(e instanceof Error ? e.message : 'Failed to load results'))
-  }, [poll.id])
+    const fetch = () =>
+      api.getResults(poll.id)
+        .then(setResults)
+        .catch(e => setError(e instanceof Error ? e.message : 'Failed to load results'))
+
+    fetch()
+
+    if (poll.phase !== 'closed') {
+      intervalRef.current = setInterval(fetch, 3000)
+    }
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
+  }, [poll.id, poll.phase])
 
   if (error) return <p className="text-ink-3 text-sm text-center py-10">{error}</p>
   if (!results) return <p className="text-ink-3 text-sm text-center py-10 animate-pulse">Loading results…</p>
@@ -40,7 +53,7 @@ export function ResultsView({ poll }: ResultsViewProps) {
               <img src={winnerImage} alt="" className="w-14 h-20 object-cover rounded-xl flex-shrink-0" />
             )}
             <div className="min-w-0">
-              <p className="text-xs font-bold text-accent uppercase tracking-widest mb-1">Winner</p>
+              <p className="text-xs font-bold text-accent uppercase tracking-widest mb-1">{poll.phase === 'closed' ? 'Winner' : 'Winning'}</p>
               <p className="text-2xl font-extrabold text-ink tracking-tight leading-tight text-wrap-balance">
                 {winner.title}
               </p>
