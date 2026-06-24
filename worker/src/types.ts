@@ -5,6 +5,7 @@ export type Phase = 'nominating' | 'voting' | 'closed'
 export interface Env {
   DB: D1Database
   TMDB_API_KEY: string
+  GOOGLE_BOOKS_API_KEY: string
 }
 
 export interface Poll {

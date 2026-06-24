@@ -9,7 +9,8 @@ searchRouter.get('/books', participantAuth, async (c) => {
   const q = c.req.query('q')?.trim()
   if (!q) return c.json({ error: 'q is required' }, 400)
 
-  const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=5&fields=items(id,volumeInfo(title,authors,publishedDate,imageLinks))`
+  const apiKey = c.env.GOOGLE_BOOKS_API_KEY ? `&key=${c.env.GOOGLE_BOOKS_API_KEY}` : ''
+  const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=5&fields=items(id,volumeInfo(title,authors,publishedDate,imageLinks))${apiKey}`
   const res = await fetch(url)
   if (!res.ok) return c.json({ error: 'Book search failed' }, 502)
 
