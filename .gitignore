@@ -5,3 +5,4 @@ dist/
 *.local
 .superpowers/
 frontend/src/**/*.js
+.DS_Store
