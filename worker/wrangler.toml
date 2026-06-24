@@ -7,3 +7,6 @@ compatibility_flags = ["nodejs_compat"]
 binding = "DB"
 database_name = "polls"
 database_id = "YOUR_DATABASE_ID"
+
+[migrations]
+migrations_dir = "migrations"
