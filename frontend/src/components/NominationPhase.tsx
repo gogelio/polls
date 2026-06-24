@@ -61,7 +61,7 @@ export function NominationPhase({ poll, participantId, joinedName, adminToken, o
     <div className="space-y-3">
       {/* Input card */}
       {participantId && (
-        <div className="card p-5 space-y-4">
+        <div className="card p-5 space-y-4 overflow-visible relative z-10">
           <div className="flex items-center justify-between">
             <span className="text-sm font-semibold text-ink">Your nominations</span>
             {poll.nomination_closes_at && <Timer closesAt={poll.nomination_closes_at} />}
@@ -121,7 +121,9 @@ export function NominationPhase({ poll, participantId, joinedName, adminToken, o
       {poll.nominations !== null ? (
         <div className="space-y-2">
           {poll.nominations.length === 0 ? (
-            <p className="text-ink-3 text-sm text-center py-8">No nominations yet — be the first!</p>
+            <div className="card p-8 text-center">
+              <p className="text-ink-3 text-sm">No nominations yet — be the first!</p>
+            </div>
           ) : (
             <>
               <p className="text-xs text-ink-3 font-semibold uppercase tracking-widest px-1">
