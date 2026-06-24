@@ -4,9 +4,9 @@ import { api } from '../api/client'
 import type { Category, VotingMethod, PublicPollSummary } from '../types'
 
 const CATEGORIES: { value: Category; label: string; emoji: string }[] = [
-  { value: 'movie', label: 'Movies', emoji: '🎬' },
-  { value: 'book', label: 'Books', emoji: '📚' },
   { value: 'general', label: 'General', emoji: '💬' },
+  { value: 'book', label: 'Books', emoji: '📚' },
+  { value: 'movie', label: 'Movies', emoji: '🎬' },
 ]
 
 const VOTING_METHODS: { value: VotingMethod; label: string; description: string }[] = [
@@ -40,11 +40,11 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
 export function CreatePoll() {
   const navigate = useNavigate()
   const [title, setTitle] = useState('')
-  const [category, setCategory] = useState<Category>('movie')
+  const [category, setCategory] = useState<Category>('general')
   const [votingMethod, setVotingMethod] = useState<VotingMethod>('ranked_choice')
-  const [maxNominations, setMaxNominations] = useState(3)
+  const [maxNominations, setMaxNominations] = useState(1)
   const [nominationsVisible, setNominationsVisible] = useState(true)
-  const [votesVisible, setVotesVisible] = useState(false)
+  const [votesVisible, setVotesVisible] = useState(true)
   const [isPublic, setIsPublic] = useState(true)
   const [timerMinutes, setTimerMinutes] = useState<number | ''>('')
   const [submitting, setSubmitting] = useState(false)
