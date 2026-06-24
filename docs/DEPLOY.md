@@ -5,7 +5,8 @@
 - Cloudflare account (free plan)
 - `wrangler` CLI installed (`npm install -g wrangler`)
 - `wrangler login` completed
-- TMDB API key from https://www.themoviedb.org/settings/api
+- TMDB API key from https://www.themoviedb.org/settings/api (for movie search)
+- Google Books API key from https://console.cloud.google.com (for book search — enable the Books API, then create an API key under Credentials)
 
 ## Worker Deployment
 
@@ -30,11 +31,14 @@ npx wrangler d1 migrations apply polls
 
 The `--local` flag applies migrations to a local SQLite file used by `wrangler dev`. Only run that if you need local development to work; skip it for a production-only deploy.
 
-### 3. Set TMDB API key secret
+### 3. Set API key secrets
 
 ```bash
 npx wrangler secret put TMDB_API_KEY
 # Paste your TMDB API key when prompted
+
+npx wrangler secret put GOOGLE_BOOKS_API_KEY
+# Paste your Google Books API key when prompted
 ```
 
 ### 4. Deploy the Worker
@@ -77,6 +81,24 @@ npx wrangler pages deploy dist --project-name polls
 ```
 
 ## Local Development
+
+### API keys for local dev
+
+Worker secrets are not available in `wrangler dev` by default. Create `worker/.dev.vars` (already gitignored) with your keys:
+
+```
+TMDB_API_KEY=your_tmdb_key_here
+GOOGLE_BOOKS_API_KEY=your_google_books_key_here
+```
+
+`wrangler dev` picks this file up automatically — no extra flags needed.
+
+Also apply migrations to the local D1 database so the worker has a schema:
+
+```bash
+cd worker
+npx wrangler d1 migrations apply polls --local
+```
 
 ### Terminal 1 — Worker
 ```bash
