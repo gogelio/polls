@@ -5,3 +5,8 @@ dist/
 *.local
 .superpowers/
 frontend/src/**/*.js
+
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example
