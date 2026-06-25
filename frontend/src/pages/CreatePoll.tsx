@@ -198,7 +198,7 @@ export function CreatePoll() {
   const closedPolls = recentPolls.filter(p => p.phase === 'closed')
 
   const renderPollLink = (poll: PublicPollSummary) => {
-    const phase = PHASE_LABEL[poll.phase]
+    const phase = PHASE_LABEL[poll.phase] ?? { label: poll.phase, classes: 'text-ink-3 bg-surface' }
     return (
       <Link
         key={poll.id}

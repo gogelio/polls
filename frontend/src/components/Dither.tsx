@@ -148,8 +148,10 @@ class RetroEffectImpl extends Effect {
   get pixelSize(): number { return this.uniforms.get('pixelSize')!.value }
 }
 
+// wrapEffect returns ForwardRefExoticComponent<never> due to a postprocessing typing gap
+const WrappedRetroEffect = wrapEffect(RetroEffectImpl) as unknown as React.ComponentType<{ ref?: React.Ref<RetroEffectImpl>; colorNum: number; pixelSize: number }>
+
 const RetroEffect = forwardRef<RetroEffectImpl, { colorNum: number; pixelSize: number }>((props, ref) => {
-  const WrappedRetroEffect = wrapEffect(RetroEffectImpl)
   return <WrappedRetroEffect ref={ref} colorNum={props.colorNum} pixelSize={props.pixelSize} />
 })
 RetroEffect.displayName = 'RetroEffect'
