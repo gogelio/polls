@@ -68,9 +68,16 @@ export function DateTimePicker({ value, onChange }: DateTimePickerProps) {
   }, [])
 
   const openPicker = () => {
+    if (open) { setOpen(false); return }
     if (triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect()
-      setPopPos({ top: rect.bottom + 4, left: rect.left, width: rect.width })
+      const POPOVER_HEIGHT = 340
+      const fitsBelow = rect.bottom + 4 + POPOVER_HEIGHT <= window.innerHeight
+      setPopPos({
+        top: fitsBelow ? rect.bottom + 4 : rect.top - POPOVER_HEIGHT - 4,
+        left: rect.left,
+        width: rect.width,
+      })
     }
     seedDraft(value)
     setOpen(true)
@@ -162,7 +169,7 @@ export function DateTimePicker({ value, onChange }: DateTimePickerProps) {
         width: Math.max(popPos.width, 260),
         zIndex: 9999,
       }}
-      className="bg-[var(--surface)] border border-line rounded-2xl shadow-2xl p-4 space-y-4"
+      className="bg-surface border border-line rounded-2xl shadow-2xl p-4 space-y-4"
     >
       {/* Calendar */}
       <div>
@@ -170,6 +177,7 @@ export function DateTimePicker({ value, onChange }: DateTimePickerProps) {
           <button
             type="button"
             onClick={prevMonth}
+            aria-label="Previous month"
             className="text-ink-2 hover:text-ink w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[var(--hover)] transition-colors"
           >
             ‹
@@ -178,6 +186,7 @@ export function DateTimePicker({ value, onChange }: DateTimePickerProps) {
           <button
             type="button"
             onClick={nextMonth}
+            aria-label="Next month"
             className="text-ink-2 hover:text-ink w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[var(--hover)] transition-colors"
           >
             ›
