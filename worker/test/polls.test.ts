@@ -167,4 +167,14 @@ describe('PATCH /polls/:id', () => {
     })
     expect(res.status).toBe(401)
   })
+
+  it('rejects invalid voting_method', async () => {
+    const { id, adminToken } = await seedPoll()
+    const res = await SELF.fetch(`http://example.com/polls/${id}?admin=${adminToken}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ voting_method: 'instant_runoff' }),
+    })
+    expect(res.status).toBe(400)
+  })
 })

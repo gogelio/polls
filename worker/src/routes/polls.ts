@@ -5,6 +5,7 @@ import { adminAuth } from '../middleware/auth'
 
 export const pollsRouter = new Hono<{ Bindings: Env }>()
 
+const VALID_METHODS = ['plurality', 'ranked_choice', 'ranked_pairs']
 const VALID_TRANSITIONS: Record<Phase, Phase | null> = {
   nominating: 'voting',
   voting: 'closed',
@@ -42,7 +43,6 @@ pollsRouter.post('/', async (c) => {
 
     if (!body.title?.trim()) return c.json({ error: 'title is required' }, 400)
     const VALID_CATEGORIES = ['book', 'movie', 'general']
-    const VALID_METHODS = ['plurality', 'ranked_choice', 'ranked_pairs']
     if (!VALID_CATEGORIES.includes(body.category)) return c.json({ error: 'invalid category' }, 400)
     if (!VALID_METHODS.includes(body.voting_method)) return c.json({ error: 'invalid voting_method' }, 400)
     if (!body.max_nominations || body.max_nominations < 1) return c.json({ error: 'max_nominations must be >= 1' }, 400)
@@ -156,6 +156,9 @@ pollsRouter.patch('/:id', adminAuth, async (c) => {
   }
 
   if (body.voting_method !== undefined) {
+    if (!VALID_METHODS.includes(body.voting_method)) {
+      return c.json({ error: 'Invalid voting method' }, 400)
+    }
     const poll = await c.env.DB.prepare('SELECT phase FROM polls WHERE id = ?')
       .bind(id).first<{ phase: string }>()
     if (!poll) return c.json({ error: 'Poll not found' }, 404)
