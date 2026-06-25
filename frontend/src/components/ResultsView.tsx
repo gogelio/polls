@@ -31,8 +31,8 @@ export function ResultsView({ poll }: ResultsViewProps) {
     }
   }, [poll.id, poll.phase])
 
-  if (error) return <p className="text-ink-3 text-sm text-center py-10">{error}</p>
-  if (!results) return <p className="text-ink-3 text-sm text-center py-10 animate-pulse">Loading results…</p>
+  if (error) return <div className="card p-5 text-center"><p className="text-ink-3 text-sm">{error}</p></div>
+  if (!results) return <div className="card p-5 text-center"><p className="text-ink-3 text-sm animate-pulse">Loading results…</p></div>
 
   const leaders = results.tied
     ? results.results.filter(r => r.score === results.results[0]?.score)
