@@ -1,19 +1,25 @@
-import type { PollNomination, NominationMetadata } from '../types'
+import type { Category, PollNomination, NominationMetadata } from '../types'
 
 interface NominationCardProps {
   nomination: PollNomination
+  category: Category
   onDelete?: () => void
 }
 
-export function NominationCard({ nomination, onDelete }: NominationCardProps) {
+export function NominationCard({ nomination, category, onDelete }: NominationCardProps) {
   const meta = nomination.metadata
     ? (typeof nomination.metadata === 'string'
         ? JSON.parse(nomination.metadata) as NominationMetadata
         : nomination.metadata)
     : null
   const imageUrl = meta?.cover_url ?? meta?.poster_url
+  const externalUrl = meta?.external_id && (category === 'book' || category === 'movie')
+    ? category === 'book'
+      ? `https://books.google.com/books?id=${meta.external_id}`
+      : `https://www.themoviedb.org/movie/${meta.external_id}`
+    : null
 
-  return (
+  const inner = (
     <div className="flex items-center gap-3 bg-raised border border-line rounded-xl p-3 group">
       {imageUrl && (
         <img src={imageUrl} alt="" className="w-9 h-14 object-cover rounded-lg flex-shrink-0" />
@@ -30,7 +36,7 @@ export function NominationCard({ nomination, onDelete }: NominationCardProps) {
       </div>
       {onDelete && (
         <button
-          onClick={onDelete}
+          onClick={e => { e.preventDefault(); e.stopPropagation(); onDelete() }}
           className="text-ink-3 hover:text-danger transition-colors flex-shrink-0 p-1.5 rounded-lg hover:bg-[oklch(62%_0.22_25_/_0.1)] opacity-0 group-hover:opacity-100"
           aria-label="Remove nomination"
         >
@@ -39,4 +45,13 @@ export function NominationCard({ nomination, onDelete }: NominationCardProps) {
       )}
     </div>
   )
+
+  if (externalUrl) {
+    return (
+      <a href={externalUrl} target="_blank" rel="noopener noreferrer" className="block">
+        {inner}
+      </a>
+    )
+  }
+  return inner
 }

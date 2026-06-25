@@ -132,6 +132,7 @@ export function NominationPhase({ poll, participantId, joinedName, adminToken, o
                   <NominationCard
                     key={nom.id}
                     nomination={nom}
+                    category={poll.category}
                     onDelete={adminToken
                       ? () => api.deleteNomination(poll.id, nom.id, adminToken).then(onRefetch)
                       : undefined}

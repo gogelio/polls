@@ -107,7 +107,7 @@ export function PollPage() {
       ) : (
         <div className="space-y-2">
           {poll.nominations.map(nom => (
-            <NominationCard key={nom.id} nomination={nom} />
+            <NominationCard key={nom.id} nomination={nom} category={poll.category} />
           ))}
         </div>
       )}
