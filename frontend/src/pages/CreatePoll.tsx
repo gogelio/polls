@@ -46,7 +46,7 @@ export function CreatePoll() {
   const [nominationsVisible, setNominationsVisible] = useState(true)
   const [votesVisible, setVotesVisible] = useState(true)
   const [isPublic, setIsPublic] = useState(true)
-  const [timerMinutes, setTimerMinutes] = useState<number | ''>('')
+  const [closesAt, setClosesAt] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -70,7 +70,7 @@ export function CreatePoll() {
         nominations_visible: nominationsVisible,
         votes_visible: votesVisible,
         is_public: isPublic,
-        nomination_closes_at: timerMinutes ? Date.now() + Number(timerMinutes) * 60 * 1000 : null,
+        nomination_closes_at: closesAt ? new Date(closesAt).getTime() : null,
       })
       sessionStorage.setItem(`poll_admin_${result.id}`, result.admin_token)
       navigate(`/p/${result.id}?admin=${result.admin_token}`, { replace: true })
@@ -165,15 +165,14 @@ export function CreatePoll() {
           </div>
           <div>
             <label className="block text-xs font-semibold text-ink-2 uppercase tracking-widest mb-2">
-              Timer (min)
+              Nominations close
             </label>
             <input
-              type="number"
-              min={1}
+              type="datetime-local"
               className="input"
-              value={timerMinutes}
-              onChange={e => setTimerMinutes(e.target.value === '' ? '' : Number(e.target.value))}
-              placeholder="None"
+              value={closesAt}
+              min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
+              onChange={e => setClosesAt(e.target.value)}
             />
           </div>
         </div>
