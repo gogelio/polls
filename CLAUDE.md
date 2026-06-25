@@ -44,12 +44,12 @@ Local dev: Vite proxies `/api/*` → `http://localhost:8787`, so both processes 
 ### Worker (`worker/src/`)
 
 - `index.ts` — Hono app; mounts 5 route groups under CORS middleware
-- `types.ts` — All shared TypeScript interfaces and the `Env` binding type (`DB: D1Database`, `TMDB_API_KEY: string`)
+- `types.ts` — All shared TypeScript interfaces and the `Env` binding type (`DB: D1Database`, `TMDB_API_KEY: string`, `GOOGLE_BOOKS_API_KEY: string`)
 - `middleware/auth.ts` — Two middlewares:
   - `participantAuth`: reads `Participant-Token` header; scopes the DB lookup to `poll_id` when the route has an `:id` param (search routes are poll-agnostic)
   - `adminAuth`: reads `?admin=` query param; uses `crypto.subtle.timingSafeEqual` for constant-time comparison
 - `routes/` — One file per resource (`polls`, `participants`, `nominations`, `votes`, `search`)
-- `lib/voting.ts` — Pure functions: `plurality()`, `rankedChoice()` (instant-runoff), `rankedPairs()` (Tideman). All three consume the same `votes` table; `rank=NULL` for plurality, `rank=1,2,3…` for ranked methods.
+- `lib/voting.ts` — Pure functions: `plurality()`, `rankedChoice()` (instant-runoff), `rankedPairs()` (Tideman). All three consume the same `votes` table; `rank=NULL` for plurality, `rank=1,2,3…` for ranked methods. Results include a `tied` boolean (true when top 2+ scores are equal).
 
 ### Frontend (`frontend/src/`)
 
@@ -76,7 +76,9 @@ Worker tests run inside the actual Workers runtime via `@cloudflare/vitest-pool-
 - `migrations_dir = "migrations"` in `wrangler.toml` must be a **top-level key**, not under a `[migrations]` section — the latter breaks vitest-pool-workers
 - `frontend/src/**/*.js` is gitignored; `tsc` emits `.js` files alongside sources during type-checking, which are not committed
 - No WebSockets/Durable Objects (not on Cloudflare free plan) — live updates use 3-second polling
-- TMDB API key is a Worker secret (`wrangler secret put TMDB_API_KEY`); Google Books needs no key
+- TMDB API key is a Worker secret (`wrangler secret put TMDB_API_KEY`); Google Books API key is optional but recommended (`wrangler secret put GOOGLE_BOOKS_API_KEY`) — without it, book search hits rate limits quickly
+- CORS allowlist in `index.ts` explicitly includes `polls.gogel.io`; add any new custom domains there and redeploy the worker
+- `polls` table has an `is_public` column (default 1); `GET /polls` returns all open public polls + 3 most recently closed for the home page listing
 
 ## Deployment
 
