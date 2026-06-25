@@ -8,11 +8,11 @@ import {
   useSortable, arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import type { Poll, PollNomination, NominationMetadata } from '../types'
+import type { Category, Poll, PollNomination, NominationMetadata } from '../types'
 import { api } from '../api/client'
 import { ResultsView } from './ResultsView'
 
-interface SortableItemProps { nomination: PollNomination; rank: number; category: import('../types').Category }
+interface SortableItemProps { nomination: PollNomination; rank: number; category: Category }
 
 function SortableItem({ nomination, rank, category }: SortableItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =

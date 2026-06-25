@@ -48,7 +48,7 @@ export function NominationCard({ nomination, category, onDelete }: NominationCar
 
   if (externalUrl) {
     return (
-      <a href={externalUrl} target="_blank" rel="noopener noreferrer" className="block">
+      <a href={externalUrl} target="_blank" rel="noopener noreferrer" className="block hover:opacity-90 transition-opacity">
         {inner}
       </a>
     )
