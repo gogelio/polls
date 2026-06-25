@@ -12,9 +12,9 @@ import type { Poll, PollNomination, NominationMetadata } from '../types'
 import { api } from '../api/client'
 import { ResultsView } from './ResultsView'
 
-interface SortableItemProps { nomination: PollNomination; rank: number }
+interface SortableItemProps { nomination: PollNomination; rank: number; category: import('../types').Category }
 
-function SortableItem({ nomination, rank }: SortableItemProps) {
+function SortableItem({ nomination, rank, category }: SortableItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: nomination.id })
   const meta = nomination.metadata
@@ -23,6 +23,11 @@ function SortableItem({ nomination, rank }: SortableItemProps) {
         : nomination.metadata)
     : null
   const imageUrl = meta?.cover_url ?? meta?.poster_url
+  const externalUrl = meta?.external_id && (category === 'book' || category === 'movie')
+    ? category === 'book'
+      ? `https://books.google.com/books?id=${meta.external_id}`
+      : `https://www.themoviedb.org/movie/${meta.external_id}`
+    : null
 
   return (
     <div
@@ -39,7 +44,19 @@ function SortableItem({ nomination, rank }: SortableItemProps) {
         <img src={imageUrl} alt="" className="w-8 h-11 object-cover rounded-lg flex-shrink-0" />
       )}
       <div className="flex-1 min-w-0">
-        <div className="font-semibold text-sm text-ink truncate">{nomination.title}</div>
+        {externalUrl ? (
+          <a
+            href={externalUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={e => e.stopPropagation()}
+            className="font-semibold text-sm text-ink truncate hover:underline block"
+          >
+            {nomination.title}
+          </a>
+        ) : (
+          <div className="font-semibold text-sm text-ink truncate">{nomination.title}</div>
+        )}
         {meta?.author && <div className="text-xs text-ink-3">{meta.author}</div>}
         {meta?.director && <div className="text-xs text-ink-3">{meta.director}</div>}
       </div>
@@ -153,7 +170,7 @@ export function VotingPhase({ poll, onRefetch }: VotingPhaseProps) {
             <SortableContext items={ranked.map(n => n.id)} strategy={verticalListSortingStrategy}>
               <div className="space-y-2">
                 {ranked.map((nom, i) => (
-                  <SortableItem key={nom.id} nomination={nom} rank={i + 1} />
+                  <SortableItem key={nom.id} nomination={nom} rank={i + 1} category={poll.category} />
                 ))}
               </div>
             </SortableContext>
