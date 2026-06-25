@@ -139,3 +139,48 @@ pollsRouter.patch('/:id/phase', adminAuth, async (c) => {
   await c.env.DB.prepare('UPDATE polls SET phase = ? WHERE id = ?').bind(nextPhase, id).run()
   return c.json({ phase: nextPhase })
 })
+
+pollsRouter.patch('/:id', adminAuth, async (c) => {
+  const id = c.req.param('id')
+  const body = await c.req.json<{
+    title?: string
+    voting_method?: string
+    nomination_closes_at?: number | null
+    nominations_visible?: boolean
+    votes_visible?: boolean
+    is_public?: boolean
+  }>()
+
+  if (body.title !== undefined && !body.title.trim()) {
+    return c.json({ error: 'Title cannot be empty' }, 400)
+  }
+
+  if (body.voting_method !== undefined) {
+    const poll = await c.env.DB.prepare('SELECT phase FROM polls WHERE id = ?')
+      .bind(id).first<{ phase: string }>()
+    if (!poll) return c.json({ error: 'Poll not found' }, 404)
+    if (poll.phase !== 'nominating') {
+      return c.json({ error: 'Cannot change voting method after voting has started' }, 400)
+    }
+  }
+
+  const fields: string[] = []
+  const values: (string | number | null)[] = []
+
+  if (body.title !== undefined) { fields.push('title = ?'); values.push(body.title.trim()) }
+  if (body.voting_method !== undefined) { fields.push('voting_method = ?'); values.push(body.voting_method) }
+  if ('nomination_closes_at' in body) { fields.push('nomination_closes_at = ?'); values.push(body.nomination_closes_at ?? null) }
+  if (body.nominations_visible !== undefined) { fields.push('nominations_visible = ?'); values.push(body.nominations_visible ? 1 : 0) }
+  if (body.votes_visible !== undefined) { fields.push('votes_visible = ?'); values.push(body.votes_visible ? 1 : 0) }
+  if (body.is_public !== undefined) { fields.push('is_public = ?'); values.push(body.is_public ? 1 : 0) }
+
+  if (fields.length === 0) return c.json({ error: 'No fields to update' }, 400)
+
+  const result = await c.env.DB.prepare(`UPDATE polls SET ${fields.join(', ')} WHERE id = ?`)
+    .bind(...values, id)
+    .run()
+
+  if (result.meta.changes === 0) return c.json({ error: 'Poll not found' }, 404)
+
+  return c.json({ ok: true })
+})

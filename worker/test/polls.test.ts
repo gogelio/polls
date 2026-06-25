@@ -90,3 +90,81 @@ describe('PATCH /polls/:id/phase', () => {
     expect(res.status).toBe(401)
   })
 })
+
+describe('PATCH /polls/:id', () => {
+  beforeEach(applySchema)
+
+  it('updates the poll title', async () => {
+    const { id, adminToken } = await seedPoll({ title: 'Old Title' })
+    const res = await SELF.fetch(`http://example.com/polls/${id}?admin=${adminToken}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'New Title' }),
+    })
+    expect(res.status).toBe(200)
+    const check = await SELF.fetch(`http://example.com/polls/${id}`)
+    const poll = await check.json() as Record<string, unknown>
+    expect(poll.title).toBe('New Title')
+  })
+
+  it('updates voting_method in nominating phase', async () => {
+    const { id, adminToken } = await seedPoll({ voting_method: 'plurality' })
+    const res = await SELF.fetch(`http://example.com/polls/${id}?admin=${adminToken}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ voting_method: 'ranked_choice' }),
+    })
+    expect(res.status).toBe(200)
+    const check = await SELF.fetch(`http://example.com/polls/${id}`)
+    const poll = await check.json() as Record<string, unknown>
+    expect(poll.voting_method).toBe('ranked_choice')
+  })
+
+  it('rejects voting_method change after voting starts', async () => {
+    const { id, adminToken } = await seedPoll()
+    await SELF.fetch(`http://example.com/polls/${id}/phase?admin=${adminToken}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phase: 'voting' }),
+    })
+    const res = await SELF.fetch(`http://example.com/polls/${id}?admin=${adminToken}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ voting_method: 'ranked_pairs' }),
+    })
+    expect(res.status).toBe(400)
+  })
+
+  it('rejects empty title', async () => {
+    const { id, adminToken } = await seedPoll()
+    const res = await SELF.fetch(`http://example.com/polls/${id}?admin=${adminToken}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: '   ' }),
+    })
+    expect(res.status).toBe(400)
+  })
+
+  it('clears nomination_closes_at when set to null', async () => {
+    const { id, adminToken } = await seedPoll({ nomination_closes_at: Date.now() + 86400000 })
+    const res = await SELF.fetch(`http://example.com/polls/${id}?admin=${adminToken}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nomination_closes_at: null }),
+    })
+    expect(res.status).toBe(200)
+    const check = await SELF.fetch(`http://example.com/polls/${id}`)
+    const poll = await check.json() as Record<string, unknown>
+    expect(poll.nomination_closes_at).toBeNull()
+  })
+
+  it('rejects missing admin token', async () => {
+    const { id } = await seedPoll()
+    const res = await SELF.fetch(`http://example.com/polls/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Hacked' }),
+    })
+    expect(res.status).toBe(401)
+  })
+})
