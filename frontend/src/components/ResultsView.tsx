@@ -64,9 +64,22 @@ export function ResultsView({ poll }: ResultsViewProps) {
                     <img src={image} alt="" className="w-10 h-14 object-cover rounded-lg flex-shrink-0" />
                   )}
                   <div className="min-w-0">
-                    <p className="text-xl font-extrabold text-ink tracking-tight leading-tight text-wrap-balance">
-                      {leader.title}
-                    </p>
+                    {meta?.external_id && (poll.category === 'book' || poll.category === 'movie') ? (
+                      <a
+                        href={poll.category === 'book'
+                          ? `https://books.google.com/books?id=${meta.external_id}`
+                          : `https://www.themoviedb.org/movie/${meta.external_id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xl font-extrabold text-ink tracking-tight leading-tight text-wrap-balance hover:underline"
+                      >
+                        {leader.title}
+                      </a>
+                    ) : (
+                      <p className="text-xl font-extrabold text-ink tracking-tight leading-tight text-wrap-balance">
+                        {leader.title}
+                      </p>
+                    )}
                     {meta?.author && <p className="text-ink-2 text-sm mt-0.5">{meta.author}</p>}
                     {meta?.director && <p className="text-ink-2 text-sm mt-0.5">{meta.director}</p>}
                   </div>
@@ -82,21 +95,37 @@ export function ResultsView({ poll }: ResultsViewProps) {
         <p className="text-xs font-bold text-ink-3 uppercase tracking-widest">
           Full standings · {results.total_voters} voter{results.total_voters !== 1 ? 's' : ''} · {poll.voting_method.replace(/_/g, ' ')}
         </p>
-        {results.results.map((r, i) => (
-          <div key={r.nomination_id} className="space-y-1.5">
-            <div className="flex items-center gap-3">
-              <span className="w-5 text-xs font-bold text-ink-3 tabular-nums text-right flex-shrink-0">{i + 1}</span>
-              <span className="flex-1 text-sm font-semibold text-ink truncate">{r.title}</span>
-              <span className="text-xs text-ink-3 tabular-nums flex-shrink-0">{r.percentage}%</span>
+        {results.results.map((r, i) => {
+          const standingMeta = r.metadata
+            ? (JSON.parse(r.metadata) as NominationMetadata)
+            : null
+          const standingUrl = standingMeta?.external_id && (poll.category === 'book' || poll.category === 'movie')
+            ? poll.category === 'book'
+              ? `https://books.google.com/books?id=${standingMeta.external_id}`
+              : `https://www.themoviedb.org/movie/${standingMeta.external_id}`
+            : null
+          return (
+            <div key={r.nomination_id} className="space-y-1.5">
+              <div className="flex items-center gap-3">
+                <span className="w-5 text-xs font-bold text-ink-3 tabular-nums text-right flex-shrink-0">{i + 1}</span>
+                {standingUrl ? (
+                  <a href={standingUrl} target="_blank" rel="noopener noreferrer" className="flex-1 text-sm font-semibold text-ink truncate hover:underline">
+                    {r.title}
+                  </a>
+                ) : (
+                  <span className="flex-1 text-sm font-semibold text-ink truncate">{r.title}</span>
+                )}
+                <span className="text-xs text-ink-3 tabular-nums flex-shrink-0">{r.percentage}%</span>
+              </div>
+              <div className="ml-8 h-1.5 bg-surface rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-accent rounded-full transition-all duration-700"
+                  style={{ width: `${r.percentage}%` }}
+                />
+              </div>
             </div>
-            <div className="ml-8 h-1.5 bg-surface rounded-full overflow-hidden">
-              <div
-                className="h-full bg-accent rounded-full transition-all duration-700"
-                style={{ width: `${r.percentage}%` }}
-              />
-            </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       <div className="card p-4 flex gap-4">
