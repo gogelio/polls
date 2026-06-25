@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { api } from '../api/client'
 import type { Category, VotingMethod, PublicPollSummary } from '../types'
 import { DateTimePicker } from '../components/DateTimePicker'
+import { useSpotlight } from '../hooks/useSpotlight'
 
 const CATEGORIES: { value: Category; label: string; emoji: string }[] = [
   { value: 'general', label: 'General', emoji: '💬' },
@@ -94,6 +95,8 @@ export function CreatePoll() {
     }
   }
 
+  const { onMouseMove } = useSpotlight()
+
   const form = (
     <div className="card p-7">
       <h1 className="text-3xl font-extrabold text-ink tracking-tight mb-1">New poll</h1>
@@ -118,20 +121,22 @@ export function CreatePoll() {
           <label className="block text-xs font-semibold text-ink-2 uppercase tracking-widest mb-2">
             Category
           </label>
-          <div className="flex gap-2">
+          <div className="flex gap-2 spotlight-container" onMouseMove={onMouseMove}>
             {CATEGORIES.map(cat => (
               <button
                 key={cat.value}
                 type="button"
                 onClick={() => setCategory(cat.value)}
-                className={`flex-1 flex flex-col items-center gap-1 py-3 rounded-xl border-2 text-sm font-semibold transition-colors ${
-                  category === cat.value
-                    ? 'border-accent bg-accent-muted text-ink'
-                    : 'border-line bg-surface text-ink-3 hover:border-line-bright hover:text-ink-2'
-                }`}
+                className={`spotlight-card flex-1 rounded-xl ${category === cat.value ? 'bg-accent' : 'bg-line'}`}
               >
-                <span className="text-xl">{cat.emoji}</span>
-                {cat.label}
+                <div className={`spotlight-card-inner flex flex-col items-center gap-1 py-3 rounded-xl text-sm font-semibold ${
+                  category === cat.value
+                    ? 'bg-accent-muted text-ink'
+                    : 'bg-surface text-ink-3'
+                }`}>
+                  <span className="text-xl">{cat.emoji}</span>
+                  {cat.label}
+                </div>
               </button>
             ))}
           </div>
@@ -142,20 +147,20 @@ export function CreatePoll() {
           <label className="block text-xs font-semibold text-ink-2 uppercase tracking-widest mb-2">
             Voting method
           </label>
-          <div className="space-y-2">
+          <div className="space-y-2 spotlight-container" onMouseMove={onMouseMove}>
             {VOTING_METHODS.map(method => (
               <button
                 key={method.value}
                 type="button"
                 onClick={() => setVotingMethod(method.value)}
-                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 text-left transition-colors ${
-                  votingMethod === method.value
-                    ? 'border-accent bg-accent-muted'
-                    : 'border-line bg-surface hover:border-line-bright'
-                }`}
+                className={`spotlight-card w-full rounded-xl text-left ${votingMethod === method.value ? 'bg-accent' : 'bg-line'}`}
               >
-                <span className="font-semibold text-sm text-ink">{method.label}</span>
-                <span className="text-xs text-ink-3">{method.description}</span>
+                <div className={`spotlight-card-inner flex items-center justify-between px-4 py-3 rounded-xl ${
+                  votingMethod === method.value ? 'bg-accent-muted' : 'bg-surface'
+                }`}>
+                  <span className="font-semibold text-sm text-ink">{method.label}</span>
+                  <span className="text-xs text-ink-3">{method.description}</span>
+                </div>
               </button>
             ))}
           </div>
@@ -209,22 +214,24 @@ export function CreatePoll() {
       <Link
         key={poll.id}
         to={`/p/${poll.id}`}
-        className="flex items-center gap-3 p-3 rounded-xl bg-raised border border-line hover:border-line-bright transition-colors group"
+        className="spotlight-card block rounded-xl bg-line group"
       >
-        <span className="text-lg flex-shrink-0">{CATEGORY_EMOJI[poll.category]}</span>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-ink truncate group-hover:text-accent transition-colors">
-            {poll.title}
-          </p>
-          <p className="text-xs text-ink-3">
-            {poll.participant_count} participant{poll.participant_count !== 1 ? 's' : ''}
-            {poll.phase === 'nominating' && poll.nomination_closes_at && (() => {
-              const label = formatClosesIn(poll.nomination_closes_at)
-              return label ? <> · <span className="text-warn">{label}</span></> : null
-            })()}
-          </p>
+        <div className="spotlight-card-inner flex items-center gap-3 p-3 rounded-xl bg-raised">
+          <span className="text-lg flex-shrink-0">{CATEGORY_EMOJI[poll.category]}</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-ink truncate group-hover:text-accent transition-colors">
+              {poll.title}
+            </p>
+            <p className="text-xs text-ink-3">
+              {poll.participant_count} participant{poll.participant_count !== 1 ? 's' : ''}
+              {poll.phase === 'nominating' && poll.nomination_closes_at && (() => {
+                const label = formatClosesIn(poll.nomination_closes_at)
+                return label ? <> · <span className="text-warn">{label}</span></> : null
+              })()}
+            </p>
+          </div>
+          <span className={`badge flex-shrink-0 ${phase.classes}`}>{phase.label}</span>
         </div>
-        <span className={`badge flex-shrink-0 ${phase.classes}`}>{phase.label}</span>
       </Link>
     )
   }
@@ -245,13 +252,13 @@ export function CreatePoll() {
           {activePolls.length > 0 && (
             <div className="card p-5 space-y-3">
               <p className="text-xs font-bold text-ink-3 uppercase tracking-widest">Active polls</p>
-              <div className="space-y-2">{activePolls.map(renderPollLink)}</div>
+              <div className="space-y-2 spotlight-container" onMouseMove={onMouseMove}>{activePolls.map(renderPollLink)}</div>
             </div>
           )}
           {closedPolls.length > 0 && (
             <div className="card p-5 space-y-3">
               <p className="text-xs font-bold text-ink-3 uppercase tracking-widest">Recently closed</p>
-              <div className="space-y-2">{closedPolls.map(renderPollLink)}</div>
+              <div className="space-y-2 spotlight-container" onMouseMove={onMouseMove}>{closedPolls.map(renderPollLink)}</div>
             </div>
           )}
         </div>

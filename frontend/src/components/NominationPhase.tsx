@@ -3,6 +3,7 @@ import type { Poll, SearchResult } from '../types'
 import { api } from '../api/client'
 import { SearchInput } from './SearchInput'
 import { NominationCard } from './NominationCard'
+import { useSpotlight } from '../hooks/useSpotlight'
 
 function formatClosesIn(closesAt: number): string | null {
   const ms = closesAt - Date.now()
@@ -25,6 +26,7 @@ interface NominationPhaseProps {
 }
 
 export function NominationPhase({ poll, participantId, joinedName, adminToken, onRefetch }: NominationPhaseProps) {
+  const { onMouseMove } = useSpotlight()
   const [freeText, setFreeText] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -146,7 +148,7 @@ export function NominationPhase({ poll, participantId, joinedName, adminToken, o
               <p className="text-xs text-ink-3 font-semibold uppercase tracking-widest">
                 {poll.nominations.length} nomination{poll.nominations.length !== 1 ? 's' : ''}
               </p>
-              <div className="space-y-2">
+              <div className="space-y-2 spotlight-container" onMouseMove={onMouseMove}>
                 {poll.nominations.map(nom => (
                   <NominationCard
                     key={nom.id}
