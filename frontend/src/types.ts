@@ -57,6 +57,7 @@ export interface PollResults {
   voting_method: VotingMethod
   results: RankedResult[]
   total_voters: number
+  tied: boolean
 }
 
 export interface SearchResult {

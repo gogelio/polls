@@ -34,32 +34,45 @@ export function ResultsView({ poll }: ResultsViewProps) {
   if (error) return <p className="text-ink-3 text-sm text-center py-10">{error}</p>
   if (!results) return <p className="text-ink-3 text-sm text-center py-10 animate-pulse">Loading results…</p>
 
-  const winner = results.results[0]
-  const winnerMeta = winner?.metadata
-    ? (typeof winner.metadata === 'string'
-        ? JSON.parse(winner.metadata) as NominationMetadata
-        : null)
-    : null
-  const winnerImage = winnerMeta?.cover_url ?? winnerMeta?.poster_url
+  const leaders = results.tied
+    ? results.results.filter(r => r.score === results.results[0]?.score)
+    : results.results.slice(0, 1)
+
+  const leaderLabel = results.tied
+    ? 'Tied'
+    : poll.phase === 'closed' ? 'Winner' : 'Winning'
 
   return (
     <div className="space-y-4">
-      {/* Winner */}
-      {winner && (
+      {/* Winner / Tied */}
+      {leaders.length > 0 && (
         <div className="relative overflow-hidden border-2 border-accent rounded-2xl p-5 bg-accent-muted">
-          <div className="flex items-center gap-4">
-            <span className="text-4xl flex-shrink-0">🏆</span>
-            {winnerImage && (
-              <img src={winnerImage} alt="" className="w-14 h-20 object-cover rounded-xl flex-shrink-0" />
-            )}
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-accent uppercase tracking-widest mb-1">{poll.phase === 'closed' ? 'Winner' : 'Winning'}</p>
-              <p className="text-2xl font-extrabold text-ink tracking-tight leading-tight text-wrap-balance">
-                {winner.title}
-              </p>
-              {winnerMeta?.author && <p className="text-ink-2 text-sm mt-0.5">{winnerMeta.author}</p>}
-              {winnerMeta?.director && <p className="text-ink-2 text-sm mt-0.5">{winnerMeta.director}</p>}
-            </div>
+          <p className="text-xs font-bold text-accent uppercase tracking-widest mb-3">
+            {results.tied ? '⚖️ ' : '🏆 '}{leaderLabel}
+          </p>
+          <div className="space-y-3">
+            {leaders.map(leader => {
+              const meta = leader.metadata
+                ? (typeof leader.metadata === 'string'
+                    ? JSON.parse(leader.metadata) as NominationMetadata
+                    : null)
+                : null
+              const image = meta?.cover_url ?? meta?.poster_url
+              return (
+                <div key={leader.nomination_id} className="flex items-center gap-3">
+                  {image && (
+                    <img src={image} alt="" className="w-10 h-14 object-cover rounded-lg flex-shrink-0" />
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-xl font-extrabold text-ink tracking-tight leading-tight text-wrap-balance">
+                      {leader.title}
+                    </p>
+                    {meta?.author && <p className="text-ink-2 text-sm mt-0.5">{meta.author}</p>}
+                    {meta?.director && <p className="text-ink-2 text-sm mt-0.5">{meta.director}</p>}
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}

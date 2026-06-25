@@ -76,5 +76,7 @@ votesRouter.get('/:id/results', async (c) => {
   else if (poll.voting_method === 'ranked_choice') results = rankedChoice(votes, nominations)
   else results = rankedPairs(votes, nominations)
 
-  return c.json({ poll_id: pollId, voting_method: poll.voting_method, results, total_voters: voterCount })
+  const tied = results.length > 1 && results[0]?.score === results[1]?.score
+
+  return c.json({ poll_id: pollId, voting_method: poll.voting_method, results, total_voters: voterCount, tied })
 })
