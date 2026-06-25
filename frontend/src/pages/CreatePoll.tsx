@@ -152,7 +152,7 @@ export function CreatePoll() {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-semibold text-ink-2 uppercase tracking-widest mb-2">
-              Noms per person
+              Nominations per person
             </label>
             <input
               type="number"
