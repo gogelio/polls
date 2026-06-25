@@ -102,6 +102,21 @@ export const api = {
     }))
   },
 
+  updatePoll: async (pollId: string, adminToken: string, changes: {
+    title?: string
+    voting_method?: string
+    nomination_closes_at?: number | null
+    nominations_visible?: boolean
+    votes_visible?: boolean
+    is_public?: boolean
+  }): Promise<void> => {
+    await throwIfError(await fetch(`${BASE}/polls/${pollId}?admin=${adminToken}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(changes),
+    }))
+  },
+
   searchBooks: async (pollId: string, q: string): Promise<SearchResult[]> => {
     const res = await throwIfError(await fetch(`${BASE}/search/books?q=${encodeURIComponent(q)}`, {
       headers: participantHeaders(pollId),
