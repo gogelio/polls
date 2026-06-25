@@ -119,30 +119,32 @@ export function NominationPhase({ poll, participantId, joinedName, adminToken, o
 
       {/* Nominations list */}
       {poll.nominations !== null ? (
-        <div className="space-y-2">
+        <div className="card p-5 space-y-3">
           {poll.nominations.length === 0 ? (
-            <div className="card p-8 text-center">
-              <p className="text-ink-3 text-sm">No nominations yet — be the first!</p>
-            </div>
+            <p className="text-ink-3 text-sm text-center py-3">No nominations yet — be the first!</p>
           ) : (
             <>
-              <p className="text-xs text-ink-3 font-semibold uppercase tracking-widest px-1">
+              <p className="text-xs text-ink-3 font-semibold uppercase tracking-widest">
                 {poll.nominations.length} nomination{poll.nominations.length !== 1 ? 's' : ''}
               </p>
-              {poll.nominations.map(nom => (
-                <NominationCard
-                  key={nom.id}
-                  nomination={nom}
-                  onDelete={adminToken
-                    ? () => api.deleteNomination(poll.id, nom.id, adminToken).then(onRefetch)
-                    : undefined}
-                />
-              ))}
+              <div className="space-y-2">
+                {poll.nominations.map(nom => (
+                  <NominationCard
+                    key={nom.id}
+                    nomination={nom}
+                    onDelete={adminToken
+                      ? () => api.deleteNomination(poll.id, nom.id, adminToken).then(onRefetch)
+                      : undefined}
+                  />
+                ))}
+              </div>
             </>
           )}
         </div>
       ) : (
-        <p className="text-ink-3 text-sm text-center py-8">Nominations are hidden until voting begins.</p>
+        <div className="card p-8 text-center">
+          <p className="text-ink-3 text-sm">Nominations are hidden until voting begins.</p>
+        </div>
       )}
     </div>
   )
