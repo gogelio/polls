@@ -61,6 +61,11 @@ export function PollPage() {
     }
   }
 
+  useEffect(() => {
+    if (poll) document.title = `${poll.title} - Polls`
+    return () => { document.title = 'Polls' }
+  }, [poll?.title])
+
   if (loading) return (
     <div className="flex items-center justify-center py-24 text-ink-3 animate-pulse text-sm">
       Loading…
