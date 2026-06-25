@@ -14,8 +14,8 @@ app.use('*', cors({
     const allowed = [
       'http://localhost:5173',
       'http://localhost:4173',
+      'https://polls.gogel.io',
     ]
-    // Allow any *.pages.dev subdomain and the configured production domain
     if (!origin) return '*'
     if (allowed.includes(origin)) return origin
     if (origin.endsWith('.pages.dev')) return origin
