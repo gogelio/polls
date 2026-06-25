@@ -41,6 +41,7 @@ export interface PublicPollSummary {
   category: Category
   phase: Phase
   participant_count: number
+  nomination_closes_at: number | null
   created_at: number
 }
 

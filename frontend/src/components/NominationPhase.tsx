@@ -1,9 +1,20 @@
 import { useState } from 'react'
 import type { Poll, SearchResult } from '../types'
 import { api } from '../api/client'
-import { Timer } from './Timer'
 import { SearchInput } from './SearchInput'
 import { NominationCard } from './NominationCard'
+
+function formatClosesIn(closesAt: number): string | null {
+  const ms = closesAt - Date.now()
+  if (ms <= 0) return null
+  const hours = ms / (1000 * 60 * 60)
+  if (hours >= 24) {
+    const days = Math.floor(hours / 24)
+    return `closes in ${days} day${days !== 1 ? 's' : ''}`
+  }
+  const h = Math.floor(hours)
+  return `closes in ${h} hour${h !== 1 ? 's' : ''}`
+}
 
 interface NominationPhaseProps {
   poll: Poll
@@ -64,7 +75,12 @@ export function NominationPhase({ poll, participantId, joinedName, adminToken, o
         <div className="card p-5 space-y-4 overflow-visible relative z-10">
           <div className="flex items-center justify-between">
             <span className="text-sm font-semibold text-ink">Your nominations</span>
-            {poll.nomination_closes_at && <Timer closesAt={poll.nomination_closes_at} />}
+            {poll.nomination_closes_at && (() => {
+              const label = formatClosesIn(poll.nomination_closes_at)
+              return label ? (
+                <span className="text-xs font-semibold text-warn">{label}</span>
+              ) : null
+            })()}
           </div>
 
           {/* Slot dots */}
@@ -110,12 +126,15 @@ export function NominationPhase({ poll, participantId, joinedName, adminToken, o
         </div>
       )}
 
-      {/* Timer for non-participants */}
-      {!participantId && poll.nomination_closes_at && (
-        <div className="flex justify-end">
-          <Timer closesAt={poll.nomination_closes_at} />
-        </div>
-      )}
+      {/* Countdown for non-participants */}
+      {!participantId && poll.nomination_closes_at && (() => {
+        const label = formatClosesIn(poll.nomination_closes_at)
+        return label ? (
+          <div className="flex justify-end">
+            <span className="text-xs font-semibold text-warn">{label}</span>
+          </div>
+        ) : null
+      })()}
 
       {/* Nominations list */}
       {poll.nominations !== null ? (

@@ -13,16 +13,16 @@ const VALID_TRANSITIONS: Record<Phase, Phase | null> = {
 
 pollsRouter.get('/', async (c) => {
   const { results: open } = await c.env.DB.prepare(
-    `SELECT id, title, category, phase, created_at,
+    `SELECT id, title, category, phase, nomination_closes_at, created_at,
        (SELECT COUNT(*) FROM participants WHERE poll_id = polls.id) as participant_count
      FROM polls WHERE is_public = 1 AND phase != 'closed' ORDER BY created_at DESC`
-  ).all<{ id: string; title: string; category: string; phase: string; created_at: number; participant_count: number }>()
+  ).all<{ id: string; title: string; category: string; phase: string; nomination_closes_at: number | null; created_at: number; participant_count: number }>()
 
   const { results: closed } = await c.env.DB.prepare(
-    `SELECT id, title, category, phase, created_at,
+    `SELECT id, title, category, phase, nomination_closes_at, created_at,
        (SELECT COUNT(*) FROM participants WHERE poll_id = polls.id) as participant_count
      FROM polls WHERE is_public = 1 AND phase = 'closed' ORDER BY created_at DESC LIMIT 3`
-  ).all<{ id: string; title: string; category: string; phase: string; created_at: number; participant_count: number }>()
+  ).all<{ id: string; title: string; category: string; phase: string; nomination_closes_at: number | null; created_at: number; participant_count: number }>()
 
   return c.json([...open, ...closed])
 })

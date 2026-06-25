@@ -18,6 +18,18 @@ const VOTING_METHODS: { value: VotingMethod; label: string; description: string 
 
 const CATEGORY_EMOJI: Record<string, string> = { movie: '🎬', book: '📚', general: '💬' }
 
+function formatClosesIn(closesAt: number): string | null {
+  const ms = closesAt - Date.now()
+  if (ms <= 0) return null
+  const hours = ms / (1000 * 60 * 60)
+  if (hours >= 24) {
+    const days = Math.floor(hours / 24)
+    return `closes in ${days} day${days !== 1 ? 's' : ''}`
+  }
+  const h = Math.floor(hours)
+  return `closes in ${h} hour${h !== 1 ? 's' : ''}`
+}
+
 const PHASE_LABEL: Record<string, { label: string; classes: string }> = {
   nominating: { label: 'Nominating', classes: 'text-accent bg-accent-muted' },
   voting:     { label: 'Voting',     classes: 'text-warn bg-[oklch(72%_0.17_65_/_0.12)]' },
@@ -206,6 +218,10 @@ export function CreatePoll() {
           </p>
           <p className="text-xs text-ink-3">
             {poll.participant_count} participant{poll.participant_count !== 1 ? 's' : ''}
+            {poll.phase === 'nominating' && poll.nomination_closes_at && (() => {
+              const label = formatClosesIn(poll.nomination_closes_at)
+              return label ? <> · <span className="text-warn">{label}</span></> : null
+            })()}
           </p>
         </div>
         <span className={`badge flex-shrink-0 ${phase.classes}`}>{phase.label}</span>
