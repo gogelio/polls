@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { api } from '../api/client'
 import type { Category, VotingMethod, PublicPollSummary } from '../types'
+import { DateTimePicker } from '../components/DateTimePicker'
 
 const CATEGORIES: { value: Category; label: string; emoji: string }[] = [
   { value: 'general', label: 'General', emoji: '💬' },
@@ -46,7 +47,7 @@ export function CreatePoll() {
   const [nominationsVisible, setNominationsVisible] = useState(true)
   const [votesVisible, setVotesVisible] = useState(true)
   const [isPublic, setIsPublic] = useState(true)
-  const [closesAt, setClosesAt] = useState('')
+  const [closesAt, setClosesAt] = useState<Date | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -70,7 +71,7 @@ export function CreatePoll() {
         nominations_visible: nominationsVisible,
         votes_visible: votesVisible,
         is_public: isPublic,
-        nomination_closes_at: closesAt ? new Date(closesAt).getTime() : null,
+        nomination_closes_at: closesAt ? closesAt.getTime() : null,
       })
       sessionStorage.setItem(`poll_admin_${result.id}`, result.admin_token)
       navigate(`/p/${result.id}?admin=${result.admin_token}`, { replace: true })
@@ -167,13 +168,7 @@ export function CreatePoll() {
             <label className="block text-xs font-semibold text-ink-2 uppercase tracking-widest mb-2">
               Nominations close
             </label>
-            <input
-              type="datetime-local"
-              className="input"
-              value={closesAt}
-              min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
-              onChange={e => setClosesAt(e.target.value)}
-            />
+            <DateTimePicker value={closesAt} onChange={setClosesAt} />
           </div>
         </div>
 
