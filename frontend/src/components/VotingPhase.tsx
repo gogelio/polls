@@ -161,7 +161,7 @@ export function VotingPhase({ poll, onRefetch }: VotingPhaseProps) {
         )}
       </div>
 
-      {error && <p className="text-danger text-sm px-1">{error}</p>}
+      {error && <div className="card px-4 py-3"><p className="text-danger text-sm">{error}</p></div>}
 
       <button onClick={handleSubmit} disabled={submitting} className="btn-primary">
         {submitting ? 'Submitting…' : 'Submit vote →'}
