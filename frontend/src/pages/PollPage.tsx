@@ -72,7 +72,7 @@ export function PollPage() {
       Loading…
     </div>
   )
-  if (error) return (
+  if (error && !poll) return (
     <div className="flex items-center justify-center py-24 text-danger text-sm">{error}</div>
   )
   if (!poll) return null
