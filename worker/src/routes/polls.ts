@@ -187,3 +187,19 @@ pollsRouter.patch('/:id', adminAuth, async (c) => {
 
   return c.json({ ok: true })
 })
+
+pollsRouter.delete('/:id', adminAuth, async (c) => {
+  const id = c.req.param('id')
+
+  const poll = await c.env.DB.prepare('SELECT id FROM polls WHERE id = ?').bind(id).first<{ id: string }>()
+  if (!poll) return c.json({ error: 'Poll not found' }, 404)
+
+  await c.env.DB.batch([
+    c.env.DB.prepare('DELETE FROM votes WHERE poll_id = ?').bind(id),
+    c.env.DB.prepare('DELETE FROM nominations WHERE poll_id = ?').bind(id),
+    c.env.DB.prepare('DELETE FROM participants WHERE poll_id = ?').bind(id),
+    c.env.DB.prepare('DELETE FROM polls WHERE id = ?').bind(id),
+  ])
+
+  return c.json({ ok: true })
+})

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { SELF } from 'cloudflare:test'
-import { applySchema, seedPoll } from './helpers'
+import { applySchema, seedPoll, seedParticipant, seedNomination } from './helpers'
 
 describe('POST /polls', () => {
   beforeEach(applySchema)
@@ -176,5 +176,41 @@ describe('PATCH /polls/:id', () => {
       body: JSON.stringify({ voting_method: 'instant_runoff' }),
     })
     expect(res.status).toBe(400)
+  })
+})
+
+describe('DELETE /polls/:id', () => {
+  beforeEach(applySchema)
+
+  it('deletes the poll and all child rows with valid admin token', async () => {
+    const { id, adminToken } = await seedPoll()
+    const { id: participantId } = await seedParticipant(id)
+    await seedNomination(id, participantId)
+
+    const res = await SELF.fetch(`http://example.com/polls/${id}?admin=${adminToken}`, {
+      method: 'DELETE',
+    })
+    expect(res.status).toBe(200)
+    const body = await res.json() as Record<string, unknown>
+    expect(body.ok).toBe(true)
+
+    // Poll is gone
+    const gone = await SELF.fetch(`http://example.com/polls/${id}`)
+    expect(gone.status).toBe(404)
+  })
+
+  it('returns 404 for unknown poll', async () => {
+    const res = await SELF.fetch('http://example.com/polls/notreal?admin=sometoken', {
+      method: 'DELETE',
+    })
+    expect(res.status).toBe(404)
+  })
+
+  it('returns 401 with wrong admin token', async () => {
+    const { id } = await seedPoll()
+    const res = await SELF.fetch(`http://example.com/polls/${id}?admin=wrongtoken`, {
+      method: 'DELETE',
+    })
+    expect(res.status).toBe(401)
   })
 })
