@@ -58,6 +58,15 @@ Local dev: Vite proxies `/api/*` → `http://localhost:8787`, so both processes 
 - `hooks/usePoll.ts` — Polls `GET /polls/:id` every 3 seconds using an `intervalRef` pattern (not state-based); stops automatically when phase becomes `closed`
 - `pages/PollPage.tsx` — Orchestrates the full poll lifecycle: join flow → NominationPhase → VotingPhase → ResultsView; holds `joinedName` state (captured from join response, used to count per-user nominations)
 - `components/` — Phase-specific components; admin token flows in via `?admin=` URL param and `sessionStorage`
+- `components/AdminControls.tsx` — Admin panel rendered at every poll phase; manages a mode state machine (`default → editing | confirming | deleting | deleted`). Edit mode patches poll fields; delete mode cascades through a confirmation step then redirects home via `onDeleted` callback after a countdown.
+
+### Admin Endpoints (all require `?admin=<token>`)
+
+- `PATCH /polls/:id/phase` — advance phase (`nominating → voting → closed`); only valid transitions are accepted
+- `PATCH /polls/:id` — edit poll metadata: `title`, `voting_method`, `nomination_closes_at`, `nominations_visible`, `votes_visible`, `is_public`. `voting_method` can only be changed while phase is `nominating`.
+- `DELETE /polls/:id` — permanently deletes the poll and all related rows (votes → nominations → participants → poll) via a single D1 `batch()` call
+
+Poll creation (`POST /polls`) returns an `admin_url` containing the admin token; this is the only time the token is surfaced.
 
 ### Data Flow
 
