@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { Poll, VotingMethod } from '../types'
 import { api } from '../api/client'
 import { DateTimePicker } from './DateTimePicker'
@@ -7,9 +7,10 @@ interface AdminControlsProps {
   poll: Poll
   adminToken: string
   onRefetch: () => void
+  onDeleted: () => void
 }
 
-type Mode = 'default' | 'editing' | 'confirming'
+type Mode = 'default' | 'editing' | 'confirming' | 'deleting' | 'deleted'
 
 type Changes = {
   title?: string
@@ -71,10 +72,11 @@ function formatChangeValue(key: string, value: unknown): string {
   return String(value)
 }
 
-export function AdminControls({ poll, adminToken, onRefetch }: AdminControlsProps) {
+export function AdminControls({ poll, adminToken, onRefetch, onDeleted }: AdminControlsProps) {
   const [mode, setMode] = useState<Mode>('default')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [countdown, setCountdown] = useState(10)
 
   // Draft state — seeded from poll when entering editing mode
   const [draftTitle, setDraftTitle] = useState('')
@@ -142,7 +144,23 @@ export function AdminControls({ poll, adminToken, onRefetch }: AdminControlsProp
     }
   }
 
-  const isWide = mode === 'editing' || mode === 'confirming'
+  useEffect(() => {
+    if (mode !== 'deleted') return
+    setCountdown(10)
+    const interval = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(interval)
+          onDeleted()
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [mode])
+
+  const isWide = mode === 'editing' || mode === 'confirming' || mode === 'deleting' || mode === 'deleted'
   const changes = mode === 'confirming' ? buildChanges() : {}
 
   return (
@@ -183,6 +201,12 @@ export function AdminControls({ poll, adminToken, onRefetch }: AdminControlsProp
             className="w-full text-xs text-ink-3 hover:text-ink transition-colors text-center py-1"
           >
             Edit poll
+          </button>
+          <button
+            onClick={() => { setError(null); setMode('deleting') }}
+            className="w-full text-xs text-ink-3 hover:text-danger transition-colors text-center py-1"
+          >
+            Delete poll
           </button>
         </>
       )}
@@ -253,6 +277,41 @@ export function AdminControls({ poll, adminToken, onRefetch }: AdminControlsProp
         </>
       )}
 
+      {/* Deleting mode */}
+      {mode === 'deleting' && (
+        <>
+          <p className="text-xs font-semibold text-ink">Delete this poll?</p>
+          <p className="text-xs text-ink-3">This cannot be undone. All nominations and votes will be permanently deleted.</p>
+          <div className="flex gap-2 pt-1">
+            <button
+              disabled={loading}
+              onClick={() => { setError(null); setMode('default') }}
+              className="flex-1 text-xs text-ink-3 hover:text-ink border border-line rounded-xl py-2 transition-colors disabled:opacity-40"
+            >
+              Cancel
+            </button>
+            <button
+              disabled={loading}
+              onClick={async () => {
+                setLoading(true)
+                setError(null)
+                try {
+                  await api.deletePoll(poll.id, adminToken)
+                  setMode('deleted')
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : 'Failed to delete poll')
+                } finally {
+                  setLoading(false)
+                }
+              }}
+              className="flex-1 bg-danger text-white text-xs font-semibold py-2 rounded-xl transition-colors disabled:opacity-40 hover:opacity-90"
+            >
+              Delete
+            </button>
+          </div>
+        </>
+      )}
+
       {/* Confirming mode */}
       {mode === 'confirming' && (
         <>
@@ -282,6 +341,14 @@ export function AdminControls({ poll, adminToken, onRefetch }: AdminControlsProp
             </button>
           </div>
         </>
+      )}
+
+      {/* Deleted mode */}
+      {mode === 'deleted' && (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-ink">Poll deleted.</p>
+          <p className="text-xs text-ink-3">Redirecting in {countdown}s…</p>
+        </div>
       )}
     </div>
   )

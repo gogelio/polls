@@ -117,6 +117,12 @@ export const api = {
     }))
   },
 
+  deletePoll: async (pollId: string, adminToken: string): Promise<void> => {
+    await throwIfError(await fetch(`${BASE}/polls/${pollId}?admin=${adminToken}`, {
+      method: 'DELETE',
+    }))
+  },
+
   searchBooks: async (pollId: string, q: string): Promise<SearchResult[]> => {
     const res = await throwIfError(await fetch(`${BASE}/search/books?q=${encodeURIComponent(q)}`, {
       headers: participantHeaders(pollId),

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, useSearchParams, Navigate } from 'react-router-dom'
+import { useParams, useSearchParams, Navigate, useNavigate } from 'react-router-dom'
 import { usePoll } from '../hooks/usePoll'
 import { api } from '../api/client'
 import { NominationPhase } from '../components/NominationPhase'
@@ -26,6 +26,7 @@ export function PollPage() {
   if (!id) return <Navigate to="/" />
 
   const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
   const adminToken = searchParams.get('admin')
   const { poll, error, loading, refetch } = usePoll(id)
 
@@ -124,7 +125,7 @@ export function PollPage() {
       <div className="max-w-lg mx-auto py-8 px-4 space-y-4">
         {pollHeader}
         <ResultsView poll={poll} />
-        {adminToken && <AdminControls poll={poll} adminToken={adminToken} onRefetch={refetch} />}
+        {adminToken && <AdminControls poll={poll} adminToken={adminToken} onRefetch={refetch} onDeleted={() => navigate('/')} />}
       </div>
     )
   }
@@ -152,7 +153,7 @@ export function PollPage() {
           </div>
           {rightPanel}
         </div>
-        {adminToken && <AdminControls poll={poll} adminToken={adminToken} onRefetch={refetch} />}
+        {adminToken && <AdminControls poll={poll} adminToken={adminToken} onRefetch={refetch} onDeleted={() => navigate('/')} />}
       </div>
     )
   }
@@ -180,7 +181,7 @@ export function PollPage() {
       )}
 
       {adminToken && (
-        <AdminControls poll={poll} adminToken={adminToken} onRefetch={refetch} />
+        <AdminControls poll={poll} adminToken={adminToken} onRefetch={refetch} onDeleted={() => navigate('/')} />
       )}
     </div>
   )
