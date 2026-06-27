@@ -75,6 +75,7 @@ function formatChangeValue(key: string, value: unknown): string {
 export function AdminControls({ poll, adminToken, onRefetch, onDeleted }: AdminControlsProps) {
   const [mode, setMode] = useState<Mode>('default')
   const [loading, setLoading] = useState(false)
+  const [pauseLoading, setPauseLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [countdown, setCountdown] = useState(10)
 
@@ -144,6 +145,19 @@ export function AdminControls({ poll, adminToken, onRefetch, onDeleted }: AdminC
     }
   }
 
+  const handleTogglePause = async () => {
+    setPauseLoading(true)
+    setError(null)
+    try {
+      await api.togglePause(poll.id, adminToken)
+      await onRefetch()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to toggle pause')
+    } finally {
+      setPauseLoading(false)
+    }
+  }
+
   useEffect(() => {
     if (mode !== 'deleted') return
     setCountdown(10)
@@ -202,12 +216,6 @@ export function AdminControls({ poll, adminToken, onRefetch, onDeleted }: AdminC
           >
             Edit poll
           </button>
-          <button
-            onClick={() => { setError(null); setMode('deleting') }}
-            className="w-full text-xs text-ink-3 hover:text-danger transition-colors text-center py-1"
-          >
-            Delete poll
-          </button>
         </>
       )}
 
@@ -260,7 +268,23 @@ export function AdminControls({ poll, adminToken, onRefetch, onDeleted }: AdminC
             </div>
           </div>
 
-          <div className="flex gap-2 pt-1">
+          <div className="border-t border-line pt-3 space-y-2">
+            <button
+              disabled={pauseLoading}
+              onClick={handleTogglePause}
+              className="w-full text-xs font-semibold py-2 rounded-xl transition-colors disabled:opacity-40 border border-line hover:border-line-bright text-ink-2 hover:text-ink"
+            >
+              {pauseLoading ? '…' : poll.is_paused ? '▶ Unpause poll' : '⏸ Pause poll'}
+            </button>
+            <button
+              onClick={() => { setError(null); setMode('deleting') }}
+              className="w-full text-xs text-ink-3 hover:text-danger transition-colors text-center py-1"
+            >
+              Delete poll
+            </button>
+          </div>
+
+          <div className="flex gap-2">
             <button
               onClick={() => { setError(null); setMode('default') }}
               className="flex-1 text-xs text-ink-3 hover:text-ink border border-line rounded-xl py-2 transition-colors"
