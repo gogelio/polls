@@ -12,10 +12,11 @@ votesRouter.post('/:id/votes', participantAuth, async (c) => {
   const participantId = c.get('participantId')
 
   const poll = await c.env.DB.prepare(
-    'SELECT id, phase, voting_method FROM polls WHERE id = ?'
-  ).bind(pollId).first<Pick<Poll, 'id' | 'phase' | 'voting_method'>>()
+    'SELECT id, phase, voting_method, is_paused FROM polls WHERE id = ?'
+  ).bind(pollId).first<Pick<Poll, 'id' | 'phase' | 'voting_method' | 'is_paused'>>()
   if (!poll) return c.json({ error: 'Poll not found' }, 404)
   if (poll.phase !== 'voting') return c.json({ error: 'Poll is not in voting phase' }, 400)
+  if (poll.is_paused) return c.json({ error: 'Poll is paused' }, 403)
 
   const voteItems = await c.req.json<Array<{ nomination_id: string; rank: number | null }>>()
   if (!Array.isArray(voteItems) || voteItems.length === 0) {

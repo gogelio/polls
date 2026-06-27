@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { SELF } from 'cloudflare:test'
+import { SELF, env } from 'cloudflare:test'
 import { applySchema, seedPoll, seedParticipant, seedNomination } from './helpers'
 
 describe('POST /polls', () => {
@@ -212,5 +212,46 @@ describe('DELETE /polls/:id', () => {
       method: 'DELETE',
     })
     expect(res.status).toBe(401)
+  })
+})
+
+describe('PATCH /polls/:id/pause', () => {
+  beforeEach(applySchema)
+
+  it('pauses a poll', async () => {
+    const { id, adminToken } = await seedPoll()
+    const res = await SELF.fetch(`http://example.com/polls/${id}/pause?admin=${adminToken}`, {
+      method: 'PATCH',
+    })
+    expect(res.status).toBe(200)
+    const body = await res.json() as { is_paused: boolean }
+    expect(body.is_paused).toBe(true)
+  })
+
+  it('unpauses a poll', async () => {
+    const { id, adminToken } = await seedPoll()
+    await env.DB.prepare('UPDATE polls SET is_paused = 1 WHERE id = ?').bind(id).run()
+    const res = await SELF.fetch(`http://example.com/polls/${id}/pause?admin=${adminToken}`, {
+      method: 'PATCH',
+    })
+    expect(res.status).toBe(200)
+    const body = await res.json() as { is_paused: boolean }
+    expect(body.is_paused).toBe(false)
+  })
+
+  it('returns 401 with bad admin token', async () => {
+    const { id } = await seedPoll()
+    const res = await SELF.fetch(`http://example.com/polls/${id}/pause?admin=wrong`, {
+      method: 'PATCH',
+    })
+    expect(res.status).toBe(401)
+  })
+
+  it('GET /polls/:id includes is_paused', async () => {
+    const { id, adminToken } = await seedPoll()
+    await env.DB.prepare('UPDATE polls SET is_paused = 1 WHERE id = ?').bind(id).run()
+    const res = await SELF.fetch(`http://example.com/polls/${id}`)
+    const body = await res.json() as { is_paused: boolean }
+    expect(body.is_paused).toBe(true)
   })
 })

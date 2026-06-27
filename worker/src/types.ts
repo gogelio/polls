@@ -20,6 +20,7 @@ export interface Poll {
   nominations_visible: number
   votes_visible: number
   is_public: number
+  is_paused: number
   nomination_closes_at: number | null
   created_at: number
 }

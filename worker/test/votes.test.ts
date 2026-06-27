@@ -55,6 +55,21 @@ describe('POST /polls/:id/votes', () => {
     })
     expect(res.status).toBe(400)
   })
+
+  it('rejects votes when poll is paused', async () => {
+    const { id } = await seedPoll({ voting_method: 'plurality' })
+    const { id: pid, token } = await seedParticipant(id)
+    const { id: nomId } = await seedNomination(id, pid)
+    await env.DB.prepare("UPDATE polls SET phase = 'voting', is_paused = 1 WHERE id = ?").bind(id).run()
+    const res = await SELF.fetch(`http://example.com/polls/${id}/votes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Participant-Token': token },
+      body: JSON.stringify([{ nomination_id: nomId, rank: null }]),
+    })
+    expect(res.status).toBe(403)
+    const body = await res.json() as { error: string }
+    expect(body.error).toBe('Poll is paused')
+  })
 })
 
 describe('GET /polls/:id/results', () => {

@@ -82,7 +82,7 @@ pollsRouter.post('/', async (c) => {
 pollsRouter.get('/:id', async (c) => {
   const id = c.req.param('id')
   let poll = await c.env.DB.prepare(
-    'SELECT id, title, category, voting_method, phase, max_nominations, nominations_visible, votes_visible, is_public, nomination_closes_at, created_at FROM polls WHERE id = ?'
+    'SELECT id, title, category, voting_method, phase, max_nominations, nominations_visible, votes_visible, is_public, is_paused, nomination_closes_at, created_at FROM polls WHERE id = ?'
   ).bind(id).first<Poll>()
   if (!poll) return c.json({ error: 'Poll not found' }, 404)
 
@@ -132,6 +132,7 @@ pollsRouter.get('/:id', async (c) => {
     nominations_visible: poll.nominations_visible === 1,
     votes_visible: poll.votes_visible === 1,
     is_public: poll.is_public === 1,
+    is_paused: poll.is_paused === 1,
     nomination_closes_at: poll.nomination_closes_at,
     nominations,
     has_voted: hasVoted,
@@ -153,6 +154,16 @@ pollsRouter.patch('/:id/phase', adminAuth, async (c) => {
 
   await c.env.DB.prepare('UPDATE polls SET phase = ? WHERE id = ?').bind(nextPhase, id).run()
   return c.json({ phase: nextPhase })
+})
+
+pollsRouter.patch('/:id/pause', adminAuth, async (c) => {
+  const id = c.req.param('id')
+  const poll = await c.env.DB.prepare('SELECT is_paused FROM polls WHERE id = ?')
+    .bind(id).first<{ is_paused: number }>()
+  if (!poll) return c.json({ error: 'Poll not found' }, 404)
+  const newValue = poll.is_paused === 1 ? 0 : 1
+  await c.env.DB.prepare('UPDATE polls SET is_paused = ? WHERE id = ?').bind(newValue, id).run()
+  return c.json({ is_paused: newValue === 1 })
 })
 
 pollsRouter.patch('/:id', adminAuth, async (c) => {

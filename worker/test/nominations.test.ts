@@ -51,6 +51,20 @@ describe('POST /polls/:id/nominations', () => {
     })
     expect(res.status).toBe(400)
   })
+
+  it('rejects nominations when poll is paused', async () => {
+    const { id } = await seedPoll()
+    const { token } = await seedParticipant(id)
+    await env.DB.prepare('UPDATE polls SET is_paused = 1 WHERE id = ?').bind(id).run()
+    const res = await SELF.fetch(`http://example.com/polls/${id}/nominations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Participant-Token': token },
+      body: JSON.stringify({ title: 'Blocked', metadata: null }),
+    })
+    expect(res.status).toBe(403)
+    const body = await res.json() as { error: string }
+    expect(body.error).toBe('Poll is paused')
+  })
 })
 
 describe('DELETE /polls/:id/nominations/:nid', () => {

@@ -11,9 +11,10 @@ nominationsRouter.post('/:id/nominations', participantAuth, async (c) => {
   const participantId = c.get('participantId')
 
   const poll = await c.env.DB.prepare(
-    'SELECT id, phase, max_nominations, nomination_closes_at FROM polls WHERE id = ?'
-  ).bind(pollId).first<Pick<Poll, 'id' | 'phase' | 'max_nominations' | 'nomination_closes_at'>>()
+    'SELECT id, phase, max_nominations, nomination_closes_at, is_paused FROM polls WHERE id = ?'
+  ).bind(pollId).first<Pick<Poll, 'id' | 'phase' | 'max_nominations' | 'nomination_closes_at' | 'is_paused'>>()
   if (!poll) return c.json({ error: 'Poll not found' }, 404)
+  if (poll.is_paused) return c.json({ error: 'Poll is paused' }, 403)
   if (poll.phase !== 'nominating') return c.json({ error: 'Poll is not accepting nominations' }, 400)
   if (poll.nomination_closes_at && Date.now() > poll.nomination_closes_at) {
     return c.json({ error: 'Nomination period has closed' }, 400)
