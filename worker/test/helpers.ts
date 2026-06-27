@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS polls (
   category TEXT NOT NULL, voting_method TEXT NOT NULL,
   phase TEXT NOT NULL DEFAULT 'nominating', max_nominations INTEGER NOT NULL DEFAULT 3,
   nominations_visible INTEGER NOT NULL DEFAULT 1, votes_visible INTEGER NOT NULL DEFAULT 0,
-  is_public INTEGER NOT NULL DEFAULT 1,
+  is_public INTEGER NOT NULL DEFAULT 1, is_paused INTEGER NOT NULL DEFAULT 0,
   nomination_closes_at INTEGER, created_at INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS participants (
