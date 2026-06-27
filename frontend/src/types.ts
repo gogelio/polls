@@ -29,6 +29,7 @@ export interface Poll {
   nominations_visible: boolean
   votes_visible: boolean
   is_public: boolean
+  is_paused: boolean
   nomination_closes_at: number | null
   nominations: PollNomination[] | null
   has_voted: boolean

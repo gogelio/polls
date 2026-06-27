@@ -105,6 +105,13 @@ export const api = {
     }))
   },
 
+  togglePause: async (pollId: string, adminToken: string): Promise<{ is_paused: boolean }> => {
+    const res = await throwIfError(await fetch(`${BASE}/polls/${pollId}/pause?admin=${adminToken}`, {
+      method: 'PATCH',
+    }))
+    return res.json()
+  },
+
   updatePoll: async (pollId: string, adminToken: string, changes: {
     title?: string
     voting_method?: string
