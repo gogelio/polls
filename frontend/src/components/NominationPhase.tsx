@@ -70,6 +70,16 @@ export function NominationPhase({ poll, participantId, joinedName, adminToken, o
   const slotsTotal = poll.max_nominations
   const canNominate = participantId && slotsUsed < slotsTotal
 
+  if (poll.is_paused) {
+    return (
+      <div className="card p-10 text-center space-y-2">
+        <p className="text-3xl">⏸</p>
+        <p className="text-lg font-extrabold text-ink">This poll is paused</p>
+        <p className="text-ink-3 text-sm">The admin has temporarily paused submissions.</p>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-3">
       {/* Input card */}
