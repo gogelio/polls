@@ -9,3 +9,6 @@ database_name = "polls"
 database_id = "ab09afe9-11d7-4b0d-a284-da895e8fbe51"
 
 migrations_dir = "migrations"
+
+[vars]
+ALLOWED_ORIGINS = "https://polls.gogel.io"

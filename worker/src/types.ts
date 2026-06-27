@@ -6,6 +6,7 @@ export interface Env {
   DB: D1Database
   TMDB_API_KEY: string
   GOOGLE_BOOKS_API_KEY: string
+  ALLOWED_ORIGINS?: string
 }
 
 export interface Poll {

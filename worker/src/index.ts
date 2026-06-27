@@ -10,11 +10,13 @@ import { searchRouter } from './routes/search'
 const app = new Hono<{ Bindings: Env }>()
 
 app.use('*', cors({
-  origin: (origin) => {
+  origin: (origin, c) => {
+    const extra = (c.env.ALLOWED_ORIGINS ?? '')
+      .split(',').map(s => s.trim()).filter(Boolean)
     const allowed = [
       'http://localhost:5173',
       'http://localhost:4173',
-      'https://polls.gogel.io',
+      ...extra,
     ]
     if (!origin) return '*'
     if (allowed.includes(origin)) return origin
