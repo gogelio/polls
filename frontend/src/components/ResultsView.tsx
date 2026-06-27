@@ -82,6 +82,7 @@ export function ResultsView({ poll }: ResultsViewProps) {
                     )}
                     {meta?.author && <p className="text-ink-2 text-sm mt-0.5">{meta.author}</p>}
                     {meta?.director && <p className="text-ink-2 text-sm mt-0.5">{meta.director}</p>}
+                    {leader.nominated_by && <p className="text-ink-3 text-xs mt-1">nominated by {leader.nominated_by}</p>}
                   </div>
                 </div>
               )
@@ -108,13 +109,16 @@ export function ResultsView({ poll }: ResultsViewProps) {
             <div key={r.nomination_id} className="space-y-1.5">
               <div className="flex items-center gap-3">
                 <span className="w-5 text-xs font-bold text-ink-3 tabular-nums text-right flex-shrink-0">{i + 1}</span>
-                {standingUrl ? (
-                  <a href={standingUrl} target="_blank" rel="noopener noreferrer" className="flex-1 text-sm font-semibold text-ink truncate hover:underline">
-                    {r.title}
-                  </a>
-                ) : (
-                  <span className="flex-1 text-sm font-semibold text-ink truncate">{r.title}</span>
-                )}
+                <div className="flex-1 min-w-0">
+                  {standingUrl ? (
+                    <a href={standingUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-ink truncate block hover:underline">
+                      {r.title}
+                    </a>
+                  ) : (
+                    <span className="text-sm font-semibold text-ink truncate block">{r.title}</span>
+                  )}
+                  {r.nominated_by && <span className="text-xs text-ink-3">nominated by {r.nominated_by}</span>}
+                </div>
                 <span className="text-xs text-ink-3 tabular-nums flex-shrink-0">{r.percentage}%</span>
               </div>
               <div className="ml-8 h-1.5 bg-surface rounded-full overflow-hidden">

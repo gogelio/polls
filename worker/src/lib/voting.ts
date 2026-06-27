@@ -8,12 +8,14 @@ export interface NominationRow {
   id: string
   title: string
   metadata: string | null
+  nominated_by?: string
 }
 
 export interface RankedResult {
   nomination_id: string
   title: string
   metadata: string | null
+  nominated_by?: string
   score: number
   percentage: number
 }
@@ -25,7 +27,7 @@ export function plurality(votes: VoteRow[], nominations: NominationRow[]): Ranke
   const total = votes.length
   return [...nominations]
     .map(nom => ({
-      nomination_id: nom.id, title: nom.title, metadata: nom.metadata,
+      nomination_id: nom.id, title: nom.title, metadata: nom.metadata, nominated_by: nom.nominated_by,
       score: counts.get(nom.id) ?? 0,
       percentage: total > 0 ? Math.round(((counts.get(nom.id) ?? 0) / total) * 100) : 0,
     }))
@@ -70,18 +72,18 @@ export function rankedChoice(votes: VoteRow[], nominations: NominationRow[]): Ra
         .map(id => {
           const nom = nominations.find(n => n.id === id)!
           const count = counts.get(id) ?? 0
-          return { nomination_id: id, title: nom.title, metadata: nom.metadata,
+          return { nomination_id: id, title: nom.title, metadata: nom.metadata, nominated_by: nom.nominated_by,
             score: count, percentage: Math.round((count / total) * 100) }
         })
         .sort((a, b) => b.score - a.score)
       const winNom = nominations.find(n => n.id === winner)!
       return [
-        { nomination_id: winner, title: winNom.title, metadata: winNom.metadata,
+        { nomination_id: winner, title: winNom.title, metadata: winNom.metadata, nominated_by: winNom.nominated_by,
           score: counts.get(winner)!, percentage: Math.round((counts.get(winner)! / total) * 100) },
         ...nonWinnersRemaining,
         ...[...eliminated].reverse().map(e => {
           const nom = nominations.find(n => n.id === e.id)!
-          return { nomination_id: e.id, title: nom.title, metadata: nom.metadata,
+          return { nomination_id: e.id, title: nom.title, metadata: nom.metadata, nominated_by: nom.nominated_by,
             score: e.score, percentage: e.percentage }
         }),
       ]
@@ -109,11 +111,11 @@ export function rankedChoice(votes: VoteRow[], nominations: NominationRow[]): Ra
   const finalTotal = Array.from(finalCounts.values()).reduce((a, b) => a + b, 0)
   const winnerCount = finalCounts.get(winnerId!) ?? 0
   return [
-    { nomination_id: winnerId!, title: winNom.title, metadata: winNom.metadata,
+    { nomination_id: winnerId!, title: winNom.title, metadata: winNom.metadata, nominated_by: winNom.nominated_by,
       score: winnerCount, percentage: finalTotal > 0 ? Math.round((winnerCount / finalTotal) * 100) : 100 },
     ...[...eliminated].reverse().map(e => {
       const nom = nominations.find(n => n.id === e.id)!
-      return { nomination_id: e.id, title: nom.title, metadata: nom.metadata,
+      return { nomination_id: e.id, title: nom.title, metadata: nom.metadata, nominated_by: nom.nominated_by,
         score: e.score, percentage: e.percentage }
     }),
   ]
@@ -190,7 +192,7 @@ export function rankedPairs(votes: VoteRow[], nominations: NominationRow[]): Ran
       return (pairwiseWins.get(b.id) ?? 0) - (pairwiseWins.get(a.id) ?? 0)
     })
     .map((nom, i) => ({
-      nomination_id: nom.id, title: nom.title, metadata: nom.metadata,
+      nomination_id: nom.id, title: nom.title, metadata: nom.metadata, nominated_by: nom.nominated_by,
       score: pairwiseWins.get(nom.id) ?? 0,
       percentage: i === 0 ? 100 : ids.length > 1
         ? Math.round(((pairwiseWins.get(nom.id) ?? 0) / (ids.length - 1)) * 100)

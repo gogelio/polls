@@ -104,6 +104,20 @@ pollsRouter.get('/:id', async (c) => {
     nominations = results
   }
 
+  const participantToken = c.req.header('Participant-Token')
+  let hasVoted = false
+  if (participantToken && poll.phase !== 'nominating') {
+    const participant = await c.env.DB.prepare(
+      'SELECT id FROM participants WHERE token = ? AND poll_id = ?'
+    ).bind(participantToken, id).first<{ id: string }>()
+    if (participant) {
+      const voteRow = await c.env.DB.prepare(
+        'SELECT id FROM votes WHERE poll_id = ? AND participant_id = ? LIMIT 1'
+      ).bind(id, participant.id).first()
+      hasVoted = !!voteRow
+    }
+  }
+
   const participantCountRow = await c.env.DB.prepare(
     'SELECT COUNT(*) as count FROM participants WHERE poll_id = ?'
   ).bind(id).first<{ count: number }>()
@@ -120,6 +134,7 @@ pollsRouter.get('/:id', async (c) => {
     is_public: poll.is_public === 1,
     nomination_closes_at: poll.nomination_closes_at,
     nominations,
+    has_voted: hasVoted,
     participant_count: participantCountRow?.count ?? 0,
     created_at: poll.created_at,
   })

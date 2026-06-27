@@ -75,7 +75,7 @@ export function VotingPhase({ poll, onRefetch }: VotingPhaseProps) {
   const [ranked, setRanked] = useState<PollNomination[]>(nominations)
   const [selected, setSelected] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [submitted, setSubmitted] = useState(false)
+  const [submitted, setSubmitted] = useState(poll.has_voted ?? false)
   const [error, setError] = useState<string | null>(null)
 
   const sensors = useSensors(

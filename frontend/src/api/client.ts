@@ -48,7 +48,10 @@ export const api = {
   },
 
   getPoll: async (id: string): Promise<Poll> => {
-    const res = await throwIfError(await fetch(`${BASE}/polls/${id}`))
+    const token = getToken(id)
+    const res = await throwIfError(await fetch(`${BASE}/polls/${id}`, {
+      headers: token ? { 'Participant-Token': token } : {},
+    }))
     return res.json()
   },
 

@@ -62,8 +62,8 @@ votesRouter.get('/:id/results', async (c) => {
   }
 
   const { results: nominations } = await c.env.DB.prepare(
-    'SELECT id, title, metadata FROM nominations WHERE poll_id = ?'
-  ).bind(pollId).all<Nomination>()
+    'SELECT n.id, n.title, n.metadata, p.name AS nominated_by FROM nominations n JOIN participants p ON n.participant_id = p.id WHERE n.poll_id = ?'
+  ).bind(pollId).all<Nomination & { nominated_by: string }>()
 
   const { results: votes } = await c.env.DB.prepare(
     'SELECT participant_id, nomination_id, rank FROM votes WHERE poll_id = ?'

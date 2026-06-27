@@ -31,6 +31,7 @@ export interface Poll {
   is_public: boolean
   nomination_closes_at: number | null
   nominations: PollNomination[] | null
+  has_voted: boolean
   participant_count: number
   created_at: number
 }
@@ -49,6 +50,7 @@ export interface RankedResult {
   nomination_id: string
   title: string
   metadata: string | null
+  nominated_by?: string
   score: number
   percentage: number
 }
