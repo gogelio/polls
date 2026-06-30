@@ -79,6 +79,7 @@ function MethodCard({ title, tagline, winner, steps }: {
           onClick={() => setCurrent(c => c - 1)}
           disabled={isFirst}
           className="btn-secondary text-sm disabled:opacity-30"
+          aria-label={`Previous step in ${title}`}
         >
           ← Prev
         </button>
@@ -89,6 +90,7 @@ function MethodCard({ title, tagline, winner, steps }: {
           onClick={() => setCurrent(c => c + 1)}
           disabled={isLast}
           className="btn-secondary text-sm disabled:opacity-30"
+          aria-label={current === steps.length - 2 ? `See winner in ${title}` : `Next step in ${title}`}
         >
           {current === steps.length - 2 ? 'See winner →' : 'Next →'}
         </button>
