@@ -164,6 +164,11 @@ export function CreatePoll() {
               </button>
             ))}
           </div>
+          <div className="text-right mt-2">
+            <Link to="/learn" target="_blank" rel="noopener noreferrer" className="text-xs text-ink-3 hover:text-ink-2 transition-colors">
+              How does this work? →
+            </Link>
+          </div>
         </div>
 
         {/* Nominations + Timer */}

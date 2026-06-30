@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { CreatePoll } from './pages/CreatePoll'
 import { PollPage } from './pages/PollPage'
+import { LearnPage } from './pages/LearnPage'
 import { useReducedMotion } from './hooks/useReducedMotion'
 
 const Dither = lazy(() => import('./components/Dither'))
@@ -33,6 +34,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<CreatePoll />} />
           <Route path="/p/:id" element={<PollPage />} />
+          <Route path="/learn" element={<LearnPage />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </div>
