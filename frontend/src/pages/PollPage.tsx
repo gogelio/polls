@@ -35,6 +35,7 @@ export function PollPage() {
   const [participantName, setParticipantName] = useState('')
   const [joining, setJoining] = useState(false)
   const [joinError, setJoinError] = useState<string | null>(null)
+  const [welcomeBack, setWelcomeBack] = useState(false)
   const hasToken = api.hasToken(id)
 
   useEffect(() => {
@@ -55,6 +56,7 @@ export function PollPage() {
       const data = await api.joinPoll(id, participantName.trim())
       setParticipantId(data.participant_id)
       setJoinedName(data.name)
+      if (data.rejoined) setWelcomeBack(true)
     } catch (e) {
       setJoinError(e instanceof Error ? e.message : 'Failed to join')
     } finally {
@@ -66,6 +68,12 @@ export function PollPage() {
     if (poll) document.title = `${poll.title} - Polls`
     return () => { document.title = 'Polls' }
   }, [poll?.title])
+
+  useEffect(() => {
+    if (!welcomeBack) return
+    const t = setTimeout(() => setWelcomeBack(false), 4000)
+    return () => clearTimeout(t)
+  }, [welcomeBack])
 
   if (loading) return (
     <div className="flex items-center justify-center py-24 text-ink-3 animate-pulse text-sm">
@@ -161,6 +169,12 @@ export function PollPage() {
   return (
     <div className="max-w-lg mx-auto py-8 px-4 space-y-4">
       {pollHeader}
+
+      {welcomeBack && (
+        <div className="card px-5 py-3 text-sm text-success bg-[oklch(68%_0.18_145_/_0.08)] border border-[oklch(68%_0.18_145_/_0.2)]">
+          Welcome back, {joinedName}!
+        </div>
+      )}
 
       {poll.phase === 'nominating' && (
         <NominationPhase

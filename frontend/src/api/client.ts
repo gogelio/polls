@@ -64,7 +64,7 @@ export const api = {
         : { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name }),
     }))
-    const data = await res.json() as { participant_id: string; token: string; name: string }
+    const data = await res.json() as { participant_id: string; token: string; name: string; rejoined: boolean }
     setToken(pollId, data.token)
     return data
   },
