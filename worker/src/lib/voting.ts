@@ -52,7 +52,7 @@ export function rankedChoice(votes: VoteRow[], nominations: NominationRow[]): Ra
   const N = nominations.length
   if (N === 0) return []
 
-  const voterIds = new Set(votes.map(v => v.participant_id))
+  const voterIds = new Set(votes.filter(v => v.rank !== null).map(v => v.participant_id))
   const voterCount = voterIds.size
   const maxPossible = N * voterCount
 
