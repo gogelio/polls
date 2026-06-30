@@ -70,12 +70,12 @@ Replace the `rankedChoice` describe block. New test cases:
 
 Description string changes only (labels unchanged):
 - `ranked_choice`: `'Drag to rank, instant runoff'` → `'Borda method, <20 voters'`
-- `ranked_pairs`: `'Tideman method, most fair'` → `'Tideman method, 20+ voters'`
+- `ranked_pairs`: unchanged (`'Tideman method, most fair'`)
 
 ### `frontend/src/components/AdminControls.tsx`
 
 Description string changes in two places:
-- Method option array: `ranked_choice` description `'Instant runoff'` → `'Borda method, <20 voters'`; `ranked_pairs` description `'Tideman'` → `'Tideman method, 20+ voters'`
+- Method option array: `ranked_choice` description `'Instant runoff'` → `'Borda method, <20 voters'`; `ranked_pairs` description unchanged (`'Tideman'`)
 - `VOTING_METHOD_LABELS` display names ("Ranked Choice", "Ranked Pairs", "Plurality") are unchanged
 
 ## Out of Scope
