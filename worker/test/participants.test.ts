@@ -31,6 +31,7 @@ describe('POST /polls/:id/join', () => {
     expect(res.status).toBe(200)
     const body = await res.json() as Record<string, unknown>
     expect(body.token).toBe(token)
+    expect(body.rejoined).toBe(false)
   })
 
   it('reclaims existing participant by name when no token provided', async () => {
@@ -46,5 +47,19 @@ describe('POST /polls/:id/join', () => {
     expect(body.token).toBe(token)
     expect(body.rejoined).toBe(true)
     expect(body.name).toBe('Alice')
+  })
+
+  it('reclaims existing participant case-insensitively', async () => {
+    const { id } = await seedPoll()
+    const { token } = await seedParticipant(id, 'Alice')
+    const res = await SELF.fetch(`http://example.com/polls/${id}/join`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'ALICE' }),
+    })
+    expect(res.status).toBe(200)
+    const body = await res.json() as Record<string, unknown>
+    expect(body.token).toBe(token)
+    expect(body.rejoined).toBe(true)
   })
 })
