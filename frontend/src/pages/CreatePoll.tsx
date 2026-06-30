@@ -12,7 +12,7 @@ const CATEGORIES: { value: Category; label: string; emoji: string }[] = [
 ]
 
 const VOTING_METHODS: { value: VotingMethod; label: string; description: string }[] = [
-  { value: 'ranked_choice', label: 'Ranked Choice', description: 'Borda method, <20 voters' },
+  { value: 'ranked_choice', label: 'Ranked Choice', description: 'Drag to rank, Borda method' },
   { value: 'ranked_pairs', label: 'Ranked Pairs', description: 'Tideman method, most fair' },
   { value: 'plurality', label: 'Plurality', description: 'Pick one, most votes wins' },
 ]
