@@ -22,7 +22,7 @@ type Changes = {
 }
 
 const VOTING_METHODS: { value: VotingMethod; label: string; description: string }[] = [
-  { value: 'ranked_choice', label: 'Ranked Choice', description: 'Instant runoff' },
+  { value: 'ranked_choice', label: 'Ranked Choice', description: 'Borda method, <20 voters' },
   { value: 'ranked_pairs', label: 'Ranked Pairs', description: 'Tideman' },
   { value: 'plurality', label: 'Plurality', description: 'Most votes wins' },
 ]
