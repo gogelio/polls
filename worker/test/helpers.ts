@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS polls (
 );
 CREATE TABLE IF NOT EXISTS participants (
   id TEXT PRIMARY KEY, poll_id TEXT NOT NULL, name TEXT NOT NULL,
-  token TEXT NOT NULL UNIQUE, joined_at INTEGER NOT NULL
+  token TEXT NOT NULL UNIQUE, joined_at INTEGER NOT NULL, draft_ranking TEXT
 );
 CREATE TABLE IF NOT EXISTS nominations (
   id TEXT PRIMARY KEY, poll_id TEXT NOT NULL, participant_id TEXT NOT NULL,

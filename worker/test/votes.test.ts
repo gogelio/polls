@@ -97,3 +97,76 @@ describe('GET /polls/:id/results', () => {
     expect(res.status).toBe(403)
   })
 })
+
+describe('PATCH /polls/:id/vote-draft', () => {
+  beforeEach(applySchema)
+
+  it('saves a draft ranking', async () => {
+    const { id } = await seedPoll({ voting_method: 'ranked_choice' })
+    const { id: pid, token } = await seedParticipant(id)
+    const { id: nid1 } = await seedNomination(id, pid, 'A')
+    const { id: nid2 } = await seedNomination(id, pid, 'B')
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(id).run()
+
+    const res = await SELF.fetch(`http://example.com/polls/${id}/vote-draft`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Participant-Token': token },
+      body: JSON.stringify({ ranking: [nid2, nid1] }),
+    })
+    expect(res.status).toBe(200)
+
+    const row = await env.DB.prepare('SELECT draft_ranking FROM participants WHERE id = ?').bind(pid).first<{ draft_ranking: string }>()
+    expect(JSON.parse(row!.draft_ranking)).toEqual([nid2, nid1])
+  })
+
+  it('requires participant auth', async () => {
+    const { id } = await seedPoll({ voting_method: 'ranked_choice' })
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(id).run()
+    const res = await SELF.fetch(`http://example.com/polls/${id}/vote-draft`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ranking: ['x'] }),
+    })
+    expect(res.status).toBe(401)
+  })
+
+  it('rejects when poll is not in voting phase', async () => {
+    const { id } = await seedPoll({ voting_method: 'ranked_choice' })
+    const { id: pid, token } = await seedParticipant(id)
+    const { id: nid } = await seedNomination(id, pid)
+    const res = await SELF.fetch(`http://example.com/polls/${id}/vote-draft`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Participant-Token': token },
+      body: JSON.stringify({ ranking: [nid] }),
+    })
+    expect(res.status).toBe(400)
+  })
+
+  it('rejects plurality polls', async () => {
+    const { id } = await seedPoll({ voting_method: 'plurality' })
+    const { id: pid, token } = await seedParticipant(id)
+    const { id: nid } = await seedNomination(id, pid)
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(id).run()
+    const res = await SELF.fetch(`http://example.com/polls/${id}/vote-draft`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Participant-Token': token },
+      body: JSON.stringify({ ranking: [nid] }),
+    })
+    expect(res.status).toBe(400)
+  })
+
+  it('rejects a ranking containing a nomination from another poll', async () => {
+    const { id } = await seedPoll({ voting_method: 'ranked_choice' })
+    const { id: otherId } = await seedPoll({ voting_method: 'ranked_choice' })
+    const { id: pid, token } = await seedParticipant(id)
+    const { id: otherPid } = await seedParticipant(otherId)
+    const { id: foreignNid } = await seedNomination(otherId, otherPid, 'Foreign')
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(id).run()
+    const res = await SELF.fetch(`http://example.com/polls/${id}/vote-draft`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Participant-Token': token },
+      body: JSON.stringify({ ranking: [foreignNid] }),
+    })
+    expect(res.status).toBe(400)
+  })
+})

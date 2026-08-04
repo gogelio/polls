@@ -48,6 +48,42 @@ votesRouter.post('/:id/votes', participantAuth, async (c) => {
   return c.json({ success: true })
 })
 
+votesRouter.patch('/:id/vote-draft', participantAuth, async (c) => {
+  const pollId = c.req.param('id')
+  const participantId = c.get('participantId')
+
+  const poll = await c.env.DB.prepare(
+    'SELECT id, phase, voting_method FROM polls WHERE id = ?'
+  ).bind(pollId).first<Pick<Poll, 'id' | 'phase' | 'voting_method'>>()
+  if (!poll) return c.json({ error: 'Poll not found' }, 404)
+  if (poll.phase !== 'voting') return c.json({ error: 'Poll is not in voting phase' }, 400)
+  if (poll.voting_method === 'plurality') {
+    return c.json({ error: 'Drafts are not supported for plurality polls' }, 400)
+  }
+
+  const body = await c.req.json<{ ranking?: string[] }>()
+  const ranking = body.ranking
+  if (!Array.isArray(ranking) || ranking.length === 0) {
+    return c.json({ error: 'ranking must be a non-empty array' }, 400)
+  }
+
+  const { results: nomResults } = await c.env.DB.prepare(
+    'SELECT id FROM nominations WHERE poll_id = ?'
+  ).bind(pollId).all<{ id: string }>()
+  const validNomIds = new Set(nomResults.map(n => n.id))
+  for (const nomId of ranking) {
+    if (!validNomIds.has(nomId)) {
+      return c.json({ error: `Nomination ${nomId} not found in this poll` }, 400)
+    }
+  }
+
+  await c.env.DB.prepare(
+    'UPDATE participants SET draft_ranking = ? WHERE id = ?'
+  ).bind(JSON.stringify(ranking), participantId).run()
+
+  return c.json({ success: true })
+})
+
 votesRouter.get('/:id/results', async (c) => {
   const pollId = c.req.param('id')
   const poll = await c.env.DB.prepare(
