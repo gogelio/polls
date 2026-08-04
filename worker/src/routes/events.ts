@@ -164,10 +164,12 @@ eventsRouter.delete('/:slug', eventAdminAuth, async (c) => {
     statements.push(c.env.DB.prepare('DELETE FROM votes WHERE poll_id = ?').bind(link.poll_id))
     statements.push(c.env.DB.prepare('DELETE FROM nominations WHERE poll_id = ?').bind(link.poll_id))
     statements.push(c.env.DB.prepare('DELETE FROM participants WHERE poll_id = ?').bind(link.poll_id))
-    statements.push(c.env.DB.prepare('DELETE FROM polls WHERE id = ?').bind(link.poll_id))
   }
   statements.push(c.env.DB.prepare('DELETE FROM event_slots WHERE event_id = ?').bind(slug))
   statements.push(c.env.DB.prepare('DELETE FROM event_polls WHERE event_id = ?').bind(slug))
+  for (const link of links) {
+    statements.push(c.env.DB.prepare('DELETE FROM polls WHERE id = ?').bind(link.poll_id))
+  }
   statements.push(c.env.DB.prepare('DELETE FROM events WHERE id = ?').bind(slug))
 
   await c.env.DB.batch(statements)
