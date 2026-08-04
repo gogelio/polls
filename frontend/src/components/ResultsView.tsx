@@ -62,6 +62,9 @@ export function ResultsView({ poll, hideLinks }: ResultsViewProps) {
                     : null)
                 : null
               const image = meta?.cover_url ?? meta?.poster_url
+              const displayTitle = poll.category === 'movie' && meta?.year
+                ? `${leader.title} (${meta.year})`
+                : leader.title
               return (
                 <div key={leader.nomination_id} className="flex items-center gap-3">
                   {image && (
@@ -77,11 +80,11 @@ export function ResultsView({ poll, hideLinks }: ResultsViewProps) {
                         rel="noopener noreferrer"
                         className="text-xl font-extrabold text-ink tracking-tight leading-tight text-wrap-balance hover:underline"
                       >
-                        {leader.title}
+                        {displayTitle}
                       </a>
                     ) : (
                       <p className="text-xl font-extrabold text-ink tracking-tight leading-tight text-wrap-balance">
-                        {leader.title}
+                        {displayTitle}
                       </p>
                     )}
                     {meta?.author && <p className="text-ink-2 text-sm mt-0.5">{meta.author}</p>}
@@ -119,6 +122,9 @@ export function ResultsView({ poll, hideLinks }: ResultsViewProps) {
               ? `https://books.google.com/books?id=${standingMeta.external_id}`
               : `https://www.themoviedb.org/movie/${standingMeta.external_id}`
             : null
+          const standingDisplayTitle = poll.category === 'movie' && standingMeta?.year
+            ? `${r.title} (${standingMeta.year})`
+            : r.title
           return (
             <div key={r.nomination_id} className="space-y-1.5">
               <div className="flex items-center gap-3">
@@ -126,10 +132,10 @@ export function ResultsView({ poll, hideLinks }: ResultsViewProps) {
                 <div className="flex-1 min-w-0">
                   {standingUrl ? (
                     <a href={standingUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-ink truncate block hover:underline">
-                      {r.title}
+                      {standingDisplayTitle}
                     </a>
                   ) : (
-                    <span className="text-sm font-semibold text-ink truncate block">{r.title}</span>
+                    <span className="text-sm font-semibold text-ink truncate block">{standingDisplayTitle}</span>
                   )}
                   {r.nominated_by && <span className="text-xs text-ink-3">nominated by {r.nominated_by}</span>}
                   {poll.category === 'movie' && adminToken && (

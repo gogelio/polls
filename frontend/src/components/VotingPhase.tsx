@@ -36,6 +36,9 @@ function SortableItem({ nomination, rank, category, pollId, adminToken, onNomina
       ? `https://books.google.com/books?id=${meta.external_id}`
       : `https://www.themoviedb.org/movie/${meta.external_id}`
     : null
+  const displayTitle = category === 'movie' && meta?.year
+    ? `${nomination.title} (${meta.year})`
+    : nomination.title
 
   return (
     <div
@@ -60,10 +63,10 @@ function SortableItem({ nomination, rank, category, pollId, adminToken, onNomina
             onClick={e => e.stopPropagation()}
             className="font-semibold text-sm text-ink truncate hover:underline block"
           >
-            {nomination.title}
+            {displayTitle}
           </a>
         ) : (
-          <div className="font-semibold text-sm text-ink truncate">{nomination.title}</div>
+          <div className="font-semibold text-sm text-ink truncate">{displayTitle}</div>
         )}
         {meta?.author && <div className="text-xs text-ink-3">{meta.author}</div>}
         {meta?.director && <div className="text-xs text-ink-3">{meta.director}</div>}

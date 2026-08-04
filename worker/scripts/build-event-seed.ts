@@ -154,7 +154,7 @@ async function lookupMovieMetadata(apiKey: string, movies: Movie[]): Promise<(st
         continue
       }
       console.error(`  "${movie.title}" → matched "${match.title}"${match.year ? ` (${match.year})` : ''} [tmdb:${match.external_id}]`)
-      metadata.push(JSON.stringify({ external_id: match.external_id, poster_url: match.poster_url }))
+      metadata.push(JSON.stringify({ external_id: match.external_id, poster_url: match.poster_url, year: match.year }))
     } catch (e) {
       console.error(`  ⚠ "${movie.title}" → TMDB lookup failed: ${e instanceof Error ? e.message : String(e)}`)
       metadata.push(null)
