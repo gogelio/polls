@@ -221,3 +221,32 @@ describe('PATCH /events/:slug/pause', () => {
     expect(body2.is_paused).toBe(false)
   })
 })
+
+describe('DELETE /events/:slug', () => {
+  beforeEach(applySchema)
+
+  it('cascades through all linked polls and event rows', async () => {
+    const { id: pollA } = await seedPoll()
+    const { id: p1 } = await seedParticipant(pollA, 'Alice')
+    const { id: nomA } = await seedNomination(pollA, p1, 'Movie A')
+    await env.DB.prepare(
+      'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+    ).bind('v1', pollA, p1, nomA, null, Date.now()).run()
+
+    const { adminToken } = await seedEvent({ id: 'glarm26' })
+    await seedEventPoll('glarm26', pollA, 'Action', 0)
+    await seedEventSlot('glarm26', 'Thursday', 1, 'Action', 1)
+
+    const res = await SELF.fetch(`http://example.com/events/glarm26?admin=${adminToken}`, { method: 'DELETE' })
+    expect(res.status).toBe(200)
+
+    const poll = await env.DB.prepare('SELECT id FROM polls WHERE id = ?').bind(pollA).first()
+    expect(poll).toBeNull()
+    const votes = await env.DB.prepare('SELECT id FROM votes WHERE poll_id = ?').bind(pollA).all()
+    expect(votes.results).toHaveLength(0)
+    const event = await env.DB.prepare('SELECT id FROM events WHERE id = ?').bind('glarm26').first()
+    expect(event).toBeNull()
+    const slots = await env.DB.prepare('SELECT * FROM event_slots WHERE event_id = ?').bind('glarm26').all()
+    expect(slots.results).toHaveLength(0)
+  })
+})

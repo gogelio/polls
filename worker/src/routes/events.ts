@@ -151,3 +151,25 @@ eventsRouter.patch('/:slug/pause', eventAdminAuth, async (c) => {
 
   return c.json({ is_paused: newValue === 1 })
 })
+
+eventsRouter.delete('/:slug', eventAdminAuth, async (c) => {
+  const slug = c.req.param('slug')
+  const { results: links } = await c.env.DB.prepare(
+    'SELECT poll_id FROM event_polls WHERE event_id = ?'
+  ).bind(slug).all<{ poll_id: string }>()
+  if (links.length === 0) return c.json({ error: 'Event not found' }, 404)
+
+  const statements = []
+  for (const link of links) {
+    statements.push(c.env.DB.prepare('DELETE FROM votes WHERE poll_id = ?').bind(link.poll_id))
+    statements.push(c.env.DB.prepare('DELETE FROM nominations WHERE poll_id = ?').bind(link.poll_id))
+    statements.push(c.env.DB.prepare('DELETE FROM participants WHERE poll_id = ?').bind(link.poll_id))
+    statements.push(c.env.DB.prepare('DELETE FROM polls WHERE id = ?').bind(link.poll_id))
+  }
+  statements.push(c.env.DB.prepare('DELETE FROM event_slots WHERE event_id = ?').bind(slug))
+  statements.push(c.env.DB.prepare('DELETE FROM event_polls WHERE event_id = ?').bind(slug))
+  statements.push(c.env.DB.prepare('DELETE FROM events WHERE id = ?').bind(slug))
+
+  await c.env.DB.batch(statements)
+  return c.json({ ok: true })
+})
