@@ -1,4 +1,5 @@
 import type { Env, Poll } from '../types'
+import { shuffleByParticipant } from './shuffle'
 
 export interface PollDetailNomination {
   id: string
@@ -62,6 +63,9 @@ export async function buildPollResponse(
       'SELECT id, draft_ranking FROM participants WHERE token = ? AND poll_id = ?'
     ).bind(participantToken, id).first<{ id: string; draft_ranking: string | null }>()
     if (participant) {
+      if (nominations && (poll.phase === 'voting' || poll.phase === 'closed')) {
+        nominations = shuffleByParticipant(nominations, participant.id)
+      }
       const voteRow = await env.DB.prepare(
         'SELECT id FROM votes WHERE poll_id = ? AND participant_id = ? LIMIT 1'
       ).bind(id, participant.id).first()

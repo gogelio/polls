@@ -173,6 +173,155 @@ describe('GET /polls/:id draft_ranking', () => {
   })
 })
 
+describe('GET /polls/:id nomination order', () => {
+  beforeEach(applySchema)
+
+  it('keeps created_at order during the nominating phase, even with a participant token', async () => {
+    const { id } = await seedPoll()
+    const { id: pid, token } = await seedParticipant(id)
+    const { id: n1 } = await seedNomination(id, pid, 'A')
+    const { id: n2 } = await seedNomination(id, pid, 'B')
+    const { id: n3 } = await seedNomination(id, pid, 'C')
+
+    const res = await SELF.fetch(`http://example.com/polls/${id}`, {
+      headers: { 'Participant-Token': token },
+    })
+    const body = await res.json() as { nominations: { id: string }[] }
+    expect(body.nominations.map(n => n.id)).toEqual([n1, n2, n3])
+  })
+
+  it('keeps created_at order during voting when no participant token is present', async () => {
+    const { id } = await seedPoll()
+    const { id: pid } = await seedParticipant(id)
+    const { id: n1 } = await seedNomination(id, pid, 'A')
+    const { id: n2 } = await seedNomination(id, pid, 'B')
+    const { id: n3 } = await seedNomination(id, pid, 'C')
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(id).run()
+
+    const res = await SELF.fetch(`http://example.com/polls/${id}`)
+    const body = await res.json() as { nominations: { id: string }[] }
+    expect(body.nominations.map(n => n.id)).toEqual([n1, n2, n3])
+  })
+
+  it('keeps created_at order in the closed phase when no participant token is present', async () => {
+    const { id } = await seedPoll()
+    const { id: pid } = await seedParticipant(id)
+    const { id: n1 } = await seedNomination(id, pid, 'A')
+    const { id: n2 } = await seedNomination(id, pid, 'B')
+    await env.DB.prepare("UPDATE polls SET phase = 'closed' WHERE id = ?").bind(id).run()
+
+    const res = await SELF.fetch(`http://example.com/polls/${id}`)
+    const body = await res.json() as { nominations: { id: string }[] }
+    expect(body.nominations.map(n => n.id)).toEqual([n1, n2])
+  })
+
+  it('returns the same participant-specific order across repeated fetches during voting', async () => {
+    const { id } = await seedPoll()
+    const { id: pid, token } = await seedParticipant(id)
+    for (const title of ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']) {
+      await seedNomination(id, pid, title)
+    }
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(id).run()
+
+    const first = await SELF.fetch(`http://example.com/polls/${id}`, {
+      headers: { 'Participant-Token': token },
+    })
+    const firstBody = await first.json() as { nominations: { id: string }[] }
+    const second = await SELF.fetch(`http://example.com/polls/${id}`, {
+      headers: { 'Participant-Token': token },
+    })
+    const secondBody = await second.json() as { nominations: { id: string }[] }
+
+    expect(secondBody.nominations.map(n => n.id)).toEqual(firstBody.nominations.map(n => n.id))
+  })
+
+  it('reorders nominations relative to creation order for at least one of several participants during voting', async () => {
+    const { id } = await seedPoll()
+    const { id: pid } = await seedParticipant(id, 'Nominator')
+    const creationOrder: string[] = []
+    for (const title of ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']) {
+      const { id: nid } = await seedNomination(id, pid, title)
+      creationOrder.push(nid)
+    }
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(id).run()
+
+    const voters = await Promise.all(
+      ['Voter1', 'Voter2', 'Voter3', 'Voter4', 'Voter5'].map(name => seedParticipant(id, name))
+    )
+
+    let anyDifferent = false
+    for (const { token } of voters) {
+      const res = await SELF.fetch(`http://example.com/polls/${id}`, {
+        headers: { 'Participant-Token': token },
+      })
+      const body = await res.json() as { nominations: { id: string }[] }
+      const order = body.nominations.map(n => n.id)
+      expect(order.slice().sort()).toEqual(creationOrder.slice().sort())
+      if (order.join(',') !== creationOrder.join(',')) anyDifferent = true
+    }
+    expect(anyDifferent).toBe(true)
+  })
+
+  it('also reorders nominations for a participant once the poll is closed', async () => {
+    const { id } = await seedPoll()
+    const { id: pid } = await seedParticipant(id, 'Nominator')
+    const creationOrder: string[] = []
+    for (const title of ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']) {
+      const { id: nid } = await seedNomination(id, pid, title)
+      creationOrder.push(nid)
+    }
+    await env.DB.prepare("UPDATE polls SET phase = 'closed' WHERE id = ?").bind(id).run()
+
+    const voters = await Promise.all(
+      ['Voter1', 'Voter2', 'Voter3', 'Voter4', 'Voter5'].map(name => seedParticipant(id, name))
+    )
+
+    let anyDifferent = false
+    for (const { token } of voters) {
+      const res = await SELF.fetch(`http://example.com/polls/${id}`, {
+        headers: { 'Participant-Token': token },
+      })
+      const body = await res.json() as { nominations: { id: string }[] }
+      const order = body.nominations.map(n => n.id)
+      expect(order.slice().sort()).toEqual(creationOrder.slice().sort())
+      if (order.join(',') !== creationOrder.join(',')) anyDifferent = true
+    }
+    expect(anyDifferent).toBe(true)
+  })
+
+  it('keeps a nomination added after a participant\'s first fetch in a stable position across subsequent fetches', async () => {
+    const { id } = await seedPoll()
+    const { id: pid, token } = await seedParticipant(id)
+    for (const title of ['A', 'B', 'C', 'D', 'E', 'F']) {
+      await seedNomination(id, pid, title)
+    }
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(id).run()
+
+    const before = await SELF.fetch(`http://example.com/polls/${id}`, {
+      headers: { 'Participant-Token': token },
+    })
+    const beforeBody = await before.json() as { nominations: { id: string }[] }
+    const beforeOrder = beforeBody.nominations.map(n => n.id)
+
+    const { id: lateNominationId } = await seedNomination(id, pid, 'Late Addition')
+
+    const after1 = await SELF.fetch(`http://example.com/polls/${id}`, {
+      headers: { 'Participant-Token': token },
+    })
+    const after1Body = await after1.json() as { nominations: { id: string }[] }
+    const after2 = await SELF.fetch(`http://example.com/polls/${id}`, {
+      headers: { 'Participant-Token': token },
+    })
+    const after2Body = await after2.json() as { nominations: { id: string }[] }
+
+    // The original 6 nominations keep the exact same relative order as before the addition.
+    expect(after1Body.nominations.map(n => n.id).filter(nid => nid !== lateNominationId)).toEqual(beforeOrder)
+    // The late addition lands in the same position on every subsequent fetch.
+    expect(after2Body.nominations.map(n => n.id)).toEqual(after1Body.nominations.map(n => n.id))
+    expect(after1Body.nominations.map(n => n.id)).toContain(lateNominationId)
+  })
+})
+
 describe('PATCH /polls/:id/phase', () => {
   beforeEach(applySchema)
 
