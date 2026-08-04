@@ -13,6 +13,7 @@ import { api } from '../api/client'
 import { ResultsView } from './ResultsView'
 import { NominationMatchEditor } from './NominationMatchEditor'
 import { RemoveNominationControl } from './RemoveNominationControl'
+import { AdminLiveResultsToggle } from './AdminLiveResultsToggle'
 
 interface SortableItemProps {
   nomination: PollNomination
@@ -127,9 +128,14 @@ interface VotingPhaseProps {
   onRefetch: () => void
   hideResultsLinks?: boolean
   adminToken?: string | null
+  // True only when rendered inside an event category (EventPage), never for
+  // a standalone poll — scopes the admin live-results preview to events, so
+  // a plain poll's admin sees the same "results hidden" behavior as anyone
+  // else, matching the backend's event-only bypass in GET /:id/results.
+  eventScoped?: boolean
 }
 
-export function VotingPhase({ poll, onRefetch, hideResultsLinks, adminToken }: VotingPhaseProps) {
+export function VotingPhase({ poll, onRefetch, hideResultsLinks, adminToken, eventScoped }: VotingPhaseProps) {
   const nominations = poll.nominations ?? []
   const [ranked, setRanked] = useState<PollNomination[]>(() => applyDraftOrder(nominations, poll.draft_ranking))
   const [selected, setSelected] = useState<string | null>(null)
@@ -251,6 +257,8 @@ export function VotingPhase({ poll, onRefetch, hideResultsLinks, adminToken }: V
     }
   }
 
+  const adminResultsToggle = eventScoped && adminToken ? <AdminLiveResultsToggle poll={poll} /> : null
+
   if (submitted) {
     if (poll.votes_visible) {
       return (
@@ -264,26 +272,33 @@ export function VotingPhase({ poll, onRefetch, hideResultsLinks, adminToken }: V
       )
     }
     return (
-      <div className="card p-10 text-center">
-        <div className="text-5xl mb-4">✓</div>
-        <p className="text-xl font-extrabold text-ink mb-1">Vote submitted!</p>
-        <p className="text-ink-3 text-sm">Waiting for results…</p>
+      <div className="space-y-4">
+        {adminResultsToggle}
+        <div className="card p-10 text-center">
+          <div className="text-5xl mb-4">✓</div>
+          <p className="text-xl font-extrabold text-ink mb-1">Vote submitted!</p>
+          <p className="text-ink-3 text-sm">Waiting for results…</p>
+        </div>
       </div>
     )
   }
 
   if (poll.is_paused) {
     return (
-      <div className="card p-10 text-center space-y-2">
-        <p className="text-3xl">⏸</p>
-        <p className="text-lg font-extrabold text-ink">This poll is paused</p>
-        <p className="text-ink-3 text-sm">The admin has temporarily paused submissions.</p>
+      <div className="space-y-4">
+        {adminResultsToggle}
+        <div className="card p-10 text-center space-y-2">
+          <p className="text-3xl">⏸</p>
+          <p className="text-lg font-extrabold text-ink">This poll is paused</p>
+          <p className="text-ink-3 text-sm">The admin has temporarily paused submissions.</p>
+        </div>
       </div>
     )
   }
 
   return (
     <div className="space-y-4">
+      {adminResultsToggle}
       <div className="card p-5">
         <p className="text-sm font-semibold text-ink mb-4">
           {poll.voting_method === 'plurality'

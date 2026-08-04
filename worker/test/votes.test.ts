@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { SELF, env } from 'cloudflare:test'
-import { applySchema, seedPoll, seedParticipant, seedNomination } from './helpers'
+import { applySchema, seedPoll, seedParticipant, seedNomination, seedEvent, seedEventPoll } from './helpers'
 
 describe('POST /polls/:id/votes', () => {
   beforeEach(applySchema)
@@ -144,6 +144,53 @@ describe('GET /polls/:id/results', () => {
     const { id } = await seedPoll({ votes_visible: 0 })
     await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(id).run()
     const res = await SELF.fetch(`http://example.com/polls/${id}/results`)
+    expect(res.status).toBe(403)
+  })
+
+  it('still hides results from a poll admin token when votes_visible=false and the poll is not event-linked', async () => {
+    const { id, adminToken } = await seedPoll({ votes_visible: 0 })
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(id).run()
+    const res = await SELF.fetch(`http://example.com/polls/${id}/results?admin=${adminToken}`)
+    expect(res.status).toBe(403)
+  })
+
+  it('lets the poll admin token preview hidden results for an event-linked poll', async () => {
+    const { id, adminToken } = await seedPoll({ votes_visible: 0 })
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(id).run()
+    const { id: eventId } = await seedEvent()
+    await seedEventPoll(eventId, id, 'Action')
+
+    const res = await SELF.fetch(`http://example.com/polls/${id}/results?admin=${adminToken}`)
+    expect(res.status).toBe(200)
+  })
+
+  it('lets the linked event\'s admin token preview hidden results for a category poll', async () => {
+    const { id } = await seedPoll({ votes_visible: 0 })
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(id).run()
+    const { id: eventId, adminToken: eventAdminToken } = await seedEvent()
+    await seedEventPoll(eventId, id, 'Action')
+
+    const res = await SELF.fetch(`http://example.com/polls/${id}/results?admin=${eventAdminToken}`)
+    expect(res.status).toBe(200)
+  })
+
+  it('still hides results for an event-linked poll with no admin token', async () => {
+    const { id } = await seedPoll({ votes_visible: 0 })
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(id).run()
+    const { id: eventId } = await seedEvent()
+    await seedEventPoll(eventId, id, 'Action')
+
+    const res = await SELF.fetch(`http://example.com/polls/${id}/results`)
+    expect(res.status).toBe(403)
+  })
+
+  it('still hides results for an event-linked poll with an invalid admin token', async () => {
+    const { id } = await seedPoll({ votes_visible: 0 })
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(id).run()
+    const { id: eventId } = await seedEvent()
+    await seedEventPoll(eventId, id, 'Action')
+
+    const res = await SELF.fetch(`http://example.com/polls/${id}/results?admin=not-a-real-token`)
     expect(res.status).toBe(403)
   })
 })

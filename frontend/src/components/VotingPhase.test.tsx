@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
-import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent, act, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
 import { VotingPhase } from './VotingPhase'
 import type { Poll } from '../types'
 import { api } from '../api/client'
@@ -12,6 +13,7 @@ vi.mock('../api/client', () => ({
     submitVotes: vi.fn().mockResolvedValue(undefined),
     searchMoviesAsAdmin: vi.fn().mockResolvedValue([]),
     updateNomination: vi.fn().mockResolvedValue(undefined),
+    getResults: vi.fn().mockResolvedValue({ poll_id: 'poll1', voting_method: 'ranked_choice', results: [], total_voters: 0, tied: false }),
   },
 }))
 
@@ -160,6 +162,51 @@ describe('VotingPhase draft ordering', () => {
 
     expect(screen.getAllByText(/^Movie [AC]$/).map(el => el.textContent)).toEqual(['Movie A', 'Movie C'])
     expect(screen.queryByText('Movie B')).toBeNull()
+  })
+})
+
+describe('AdminLiveResultsToggle visibility', () => {
+  it('shows the admin live-results toggle only when eventScoped and an admin token are both present', () => {
+    const poll = buildPoll({ votes_visible: false })
+    render(
+      <MemoryRouter initialEntries={['/e/glarm26?admin=abc123']}>
+        <VotingPhase poll={poll} onRefetch={vi.fn()} eventScoped adminToken="abc123" />
+      </MemoryRouter>
+    )
+    expect(screen.getByText('📊 Admin: view live results')).toBeTruthy()
+  })
+
+  it('hides the toggle for a standalone poll (PollPage never passes eventScoped), even with an admin token', () => {
+    const poll = buildPoll({ votes_visible: false })
+    render(
+      <MemoryRouter initialEntries={['/p/poll1?admin=abc123']}>
+        <VotingPhase poll={poll} onRefetch={vi.fn()} adminToken="abc123" />
+      </MemoryRouter>
+    )
+    expect(screen.queryByText('📊 Admin: view live results')).toBeNull()
+  })
+
+  it('hides the toggle when eventScoped but there is no admin token (regular voter)', () => {
+    const poll = buildPoll({ votes_visible: false })
+    render(
+      <MemoryRouter initialEntries={['/e/glarm26']}>
+        <VotingPhase poll={poll} onRefetch={vi.fn()} eventScoped />
+      </MemoryRouter>
+    )
+    expect(screen.queryByText('📊 Admin: view live results')).toBeNull()
+  })
+
+  it('fetches results with the admin token once the admin expands the toggle', async () => {
+    const poll = buildPoll({ votes_visible: false })
+    render(
+      <MemoryRouter initialEntries={['/e/glarm26?admin=abc123']}>
+        <VotingPhase poll={poll} onRefetch={vi.fn()} eventScoped adminToken="abc123" />
+      </MemoryRouter>
+    )
+
+    fireEvent.click(screen.getByText('📊 Admin: view live results'))
+
+    await waitFor(() => expect(api.getResults).toHaveBeenCalledWith('poll1', 'abc123'))
   })
 })
 

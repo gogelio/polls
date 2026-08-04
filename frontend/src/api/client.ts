@@ -100,8 +100,11 @@ export const api = {
     }))
   },
 
-  getResults: async (pollId: string): Promise<PollResults> => {
-    const res = await throwIfError(await fetch(`${BASE}/polls/${pollId}/results`))
+  getResults: async (pollId: string, adminToken?: string | null): Promise<PollResults> => {
+    const url = adminToken
+      ? `${BASE}/polls/${pollId}/results?admin=${adminToken}`
+      : `${BASE}/polls/${pollId}/results`
+    const res = await throwIfError(await fetch(url))
     return res.json()
   },
 

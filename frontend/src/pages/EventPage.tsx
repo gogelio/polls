@@ -19,7 +19,7 @@ function CategorySection({ poll, onRefetch, adminToken }: { poll: Poll; onRefetc
         {poll.phase === 'closed' ? (
           <ResultsView poll={poll} hideLinks />
         ) : (
-          <VotingPhase poll={poll} onRefetch={onRefetch} hideResultsLinks adminToken={adminToken} />
+          <VotingPhase poll={poll} onRefetch={onRefetch} hideResultsLinks adminToken={adminToken} eventScoped />
         )}
       </div>
     </details>

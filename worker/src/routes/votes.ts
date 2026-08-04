@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { nanoid } from 'nanoid'
 import type { Env, Poll, Vote, Nomination } from '../types'
-import { participantAuth } from '../middleware/auth'
+import { participantAuth, isValidAdminToken } from '../middleware/auth'
 import { plurality, rankedChoice, rankedPairs } from '../lib/voting'
 
 type Variables = { participantId: string }
@@ -102,7 +102,16 @@ votesRouter.get('/:id/results', async (c) => {
   if (!poll) return c.json({ error: 'Poll not found' }, 404)
 
   if (poll.phase === 'voting' && poll.votes_visible === 0) {
-    return c.json({ error: 'Results not yet visible' }, 403)
+    // An event's admin can still preview live results for its category polls
+    // while voting is in progress, even with votes hidden from the public —
+    // scoped to event-linked polls only, so a standalone poll's admin sees
+    // the same "not yet visible" behavior as everyone else.
+    const link = await c.env.DB.prepare(
+      'SELECT 1 FROM event_polls WHERE poll_id = ?'
+    ).bind(pollId).first()
+    const adminToken = c.req.query('admin')
+    const isEventAdmin = !!link && await isValidAdminToken(c.env, pollId, adminToken)
+    if (!isEventAdmin) return c.json({ error: 'Results not yet visible' }, 403)
   }
   if (poll.phase === 'nominating') {
     return c.json({ error: 'Voting has not started' }, 403)

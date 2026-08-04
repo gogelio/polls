@@ -17,10 +17,10 @@ export function ResultsView({ poll, hideLinks }: ResultsViewProps) {
 
   const fetchResults = useCallback(
     () =>
-      api.getResults(poll.id)
+      api.getResults(poll.id, adminToken)
         .then(setResults)
         .catch(e => setError(e instanceof Error ? e.message : 'Failed to load results')),
-    [poll.id]
+    [poll.id, adminToken]
   )
 
   useEffect(() => {
