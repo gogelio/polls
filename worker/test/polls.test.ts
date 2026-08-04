@@ -91,6 +91,70 @@ describe('GET /polls/:id draft_ranking', () => {
     const body = await res.json() as { draft_ranking: string[] | null }
     expect(body.draft_ranking).toBeNull()
   })
+
+  it('omits draft_ranking for plurality polls even if the column has a value', async () => {
+    const { id } = await seedPoll({ voting_method: 'plurality' })
+    const { id: pid, token } = await seedParticipant(id)
+    const { id: nid } = await seedNomination(id, pid, 'A')
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(id).run()
+    await env.DB.prepare('UPDATE participants SET draft_ranking = ? WHERE id = ?')
+      .bind(JSON.stringify([nid]), pid).run()
+
+    const res = await SELF.fetch(`http://example.com/polls/${id}`, {
+      headers: { 'Participant-Token': token },
+    })
+    const body = await res.json() as { draft_ranking: string[] | null }
+    expect(body.draft_ranking).toBeNull()
+  })
+
+  it('omits draft_ranking during the nominating phase', async () => {
+    const { id } = await seedPoll({ voting_method: 'ranked_choice' })
+    const { id: pid, token } = await seedParticipant(id)
+    const { id: nid } = await seedNomination(id, pid, 'A')
+    await env.DB.prepare('UPDATE participants SET draft_ranking = ? WHERE id = ?')
+      .bind(JSON.stringify([nid]), pid).run()
+
+    const res = await SELF.fetch(`http://example.com/polls/${id}`, {
+      headers: { 'Participant-Token': token },
+    })
+    const body = await res.json() as { draft_ranking: string[] | null }
+    expect(body.draft_ranking).toBeNull()
+  })
+
+  it('never returns another participant draft_ranking', async () => {
+    const { id } = await seedPoll({ voting_method: 'ranked_choice' })
+    const { id: pidA } = await seedParticipant(id, 'Alice')
+    const { token: tokenB } = await seedParticipant(id, 'Bob')
+    const { id: nid } = await seedNomination(id, pidA, 'A')
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(id).run()
+    await env.DB.prepare('UPDATE participants SET draft_ranking = ? WHERE id = ?')
+      .bind(JSON.stringify([nid]), pidA).run()
+
+    const res = await SELF.fetch(`http://example.com/polls/${id}`, {
+      headers: { 'Participant-Token': tokenB },
+    })
+    const body = await res.json() as { draft_ranking: string[] | null }
+    expect(body.draft_ranking).toBeNull()
+  })
+
+  it('omits draft_ranking with no or invalid participant token', async () => {
+    const { id } = await seedPoll({ voting_method: 'ranked_choice' })
+    const { id: pid } = await seedParticipant(id)
+    const { id: nid } = await seedNomination(id, pid, 'A')
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(id).run()
+    await env.DB.prepare('UPDATE participants SET draft_ranking = ? WHERE id = ?')
+      .bind(JSON.stringify([nid]), pid).run()
+
+    const noTokenRes = await SELF.fetch(`http://example.com/polls/${id}`)
+    const noTokenBody = await noTokenRes.json() as { draft_ranking: string[] | null }
+    expect(noTokenBody.draft_ranking).toBeNull()
+
+    const invalidTokenRes = await SELF.fetch(`http://example.com/polls/${id}`, {
+      headers: { 'Participant-Token': 'not-a-real-token' },
+    })
+    const invalidTokenBody = await invalidTokenRes.json() as { draft_ranking: string[] | null }
+    expect(invalidTokenBody.draft_ranking).toBeNull()
+  })
 })
 
 describe('PATCH /polls/:id/phase', () => {
