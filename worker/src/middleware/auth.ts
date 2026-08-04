@@ -47,3 +47,27 @@ export async function adminAuth(
 
   await next()
 }
+
+export async function eventAdminAuth(
+  c: Context<{ Bindings: Env }>,
+  next: Next
+) {
+  const slug = c.req.param('slug')
+  const adminToken = c.req.query('admin')
+  if (!adminToken) return c.json({ error: 'Missing admin query param' }, 401)
+
+  const event = await c.env.DB.prepare(
+    'SELECT admin_token FROM events WHERE id = ?'
+  ).bind(slug).first<{ admin_token: string }>()
+
+  if (!event) return c.json({ error: 'Event not found' }, 404)
+
+  const encoder = new TextEncoder()
+  const a = encoder.encode(adminToken)
+  const b = encoder.encode(event.admin_token)
+  if (a.length !== b.length) return c.json({ error: 'Invalid admin token' }, 401)
+  const equal = crypto.subtle.timingSafeEqual(a, b)
+  if (!equal) return c.json({ error: 'Invalid admin token' }, 401)
+
+  await next()
+}

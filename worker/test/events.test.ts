@@ -161,3 +161,39 @@ describe('POST /events/:slug/join', () => {
     expect(res.status).toBe(400)
   })
 })
+
+describe('PATCH /events/:slug/phase', () => {
+  beforeEach(applySchema)
+
+  it('closes all linked polls with a valid admin token', async () => {
+    const { id: pollA } = await seedPoll()
+    const { id: pollB } = await seedPoll()
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id IN (?, ?)").bind(pollA, pollB).run()
+    const { adminToken } = await seedEvent({ id: 'glarm26' })
+    await seedEventPoll('glarm26', pollA, 'Action', 0)
+    await seedEventPoll('glarm26', pollB, 'Comedy', 1)
+
+    const res = await SELF.fetch(`http://example.com/events/glarm26/phase?admin=${adminToken}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phase: 'closed' }),
+    })
+    expect(res.status).toBe(200)
+
+    const polls = await env.DB.prepare('SELECT phase FROM polls WHERE id IN (?, ?)').bind(pollA, pollB).all<{ phase: string }>()
+    expect(polls.results.every(p => p.phase === 'closed')).toBe(true)
+  })
+
+  it('rejects an invalid admin token', async () => {
+    const { id: pollA } = await seedPoll()
+    await seedEvent({ id: 'glarm26' })
+    await seedEventPoll('glarm26', pollA, 'Action', 0)
+
+    const res = await SELF.fetch('http://example.com/events/glarm26/phase?admin=wrong', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phase: 'closed' }),
+    })
+    expect(res.status).toBe(401)
+  })
+})

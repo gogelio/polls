@@ -4,6 +4,7 @@ import { buildPollResponse } from '../lib/pollDetail'
 import { rankedChoice, type RankedResult, type NominationRow, type VoteRow } from '../lib/voting'
 import { resolveSlot } from '../lib/bracket'
 import { joinOrReclaim } from '../lib/joinOrReclaim'
+import { eventAdminAuth } from '../middleware/auth'
 
 export const eventsRouter = new Hono<{ Bindings: Env }>()
 
@@ -113,4 +114,22 @@ eventsRouter.post('/:slug/join', async (c) => {
   }
 
   return c.json({ name, rejoined: anyRejoined, participants })
+})
+
+eventsRouter.patch('/:slug/phase', eventAdminAuth, async (c) => {
+  const slug = c.req.param('slug')
+  const { phase } = await c.req.json<{ phase: string }>()
+  if (phase !== 'closed') return c.json({ error: 'Only transition to closed is supported' }, 400)
+
+  const { results: links } = await c.env.DB.prepare(
+    'SELECT poll_id FROM event_polls WHERE event_id = ?'
+  ).bind(slug).all<{ poll_id: string }>()
+
+  await c.env.DB.batch(
+    links.map(link =>
+      c.env.DB.prepare("UPDATE polls SET phase = 'closed' WHERE id = ? AND phase = 'voting'").bind(link.poll_id)
+    )
+  )
+
+  return c.json({ phase: 'closed' })
 })
