@@ -141,6 +141,10 @@ function main() {
   const pollIdByCategory = new Map<string, string>()
   const systemParticipantIdByCategory = new Map<string, string>()
 
+  statements.push(
+    `INSERT INTO events (id, admin_token, title, is_public, created_at) VALUES (${sqlValue(slug)}, ${sqlValue(eventAdminToken)}, ${sqlValue(title)}, 0, ${now});`
+  )
+
   categories.forEach((category, index) => {
     const pollId = nanoid(8)
     const pollAdminToken = nanoid(24)
@@ -171,10 +175,6 @@ function main() {
       `INSERT INTO nominations (id, poll_id, participant_id, title, metadata, created_at) VALUES (${sqlValue(nominationId)}, ${sqlValue(pollId)}, ${sqlValue(participantId)}, ${sqlValue(movie.title)}, ${sqlValue(metadata)}, ${now + index});`
     )
   })
-
-  statements.push(
-    `INSERT INTO events (id, admin_token, title, is_public, created_at) VALUES (${sqlValue(slug)}, ${sqlValue(eventAdminToken)}, ${sqlValue(title)}, 0, ${now});`
-  )
 
   for (const slot of slots) {
     statements.push(
