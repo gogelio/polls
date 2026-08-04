@@ -3,6 +3,7 @@ import type { Env } from '../types'
 import { buildPollResponse } from '../lib/pollDetail'
 import { rankedChoice, type RankedResult, type NominationRow, type VoteRow } from '../lib/voting'
 import { resolveSlot } from '../lib/bracket'
+import { joinOrReclaim } from '../lib/joinOrReclaim'
 
 export const eventsRouter = new Hono<{ Bindings: Env }>()
 
@@ -88,4 +89,28 @@ eventsRouter.get('/:slug', async (c) => {
     schedule,
     created_at: event.created_at,
   })
+})
+
+eventsRouter.post('/:slug/join', async (c) => {
+  const slug = c.req.param('slug')
+  const body = await c.req.json<{ name?: string }>()
+  const name = (body.name ?? '').trim()
+  if (!name) return c.json({ error: 'name is required' }, 400)
+
+  const { results: links } = await c.env.DB.prepare(
+    'SELECT poll_id FROM event_polls WHERE event_id = ?'
+  ).bind(slug).all<{ poll_id: string }>()
+  if (links.length === 0) return c.json({ error: 'Event not found' }, 404)
+
+  const participants: Array<{ poll_id: string; participant_id: string; token: string }> = []
+  let anyRejoined = false
+
+  for (const link of links) {
+    const result = await joinOrReclaim(c.env, link.poll_id, name, null)
+    if ('error' in result) return c.json({ error: result.error }, 500)
+    if (result.rejoined) anyRejoined = true
+    participants.push({ poll_id: link.poll_id, participant_id: result.participant_id, token: result.token })
+  }
+
+  return c.json({ name, rejoined: anyRejoined, participants })
 })

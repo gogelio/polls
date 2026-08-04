@@ -104,3 +104,60 @@ describe('GET /events/:slug', () => {
     expect(categoryB?.poll.has_voted).toBe(false)
   })
 })
+
+describe('POST /events/:slug/join', () => {
+  beforeEach(applySchema)
+
+  it('joins all linked polls with the same name', async () => {
+    const { id: pollA } = await seedPoll({ title: 'Action' })
+    const { id: pollB } = await seedPoll({ title: 'Comedy' })
+    await seedEvent({ id: 'glarm26' })
+    await seedEventPoll('glarm26', pollA, 'Action', 0)
+    await seedEventPoll('glarm26', pollB, 'Comedy', 1)
+
+    const res = await SELF.fetch('http://example.com/events/glarm26/join', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Alice' }),
+    })
+    expect(res.status).toBe(200)
+    const body = await res.json() as { name: string; rejoined: boolean; participants: Array<{ poll_id: string; token: string }> }
+    expect(body.name).toBe('Alice')
+    expect(body.rejoined).toBe(false)
+    expect(body.participants).toHaveLength(2)
+    expect(body.participants.map(p => p.poll_id).sort()).toEqual([pollA, pollB].sort())
+  })
+
+  it('reclaims the same tokens across all polls on repeat join', async () => {
+    const { id: pollA } = await seedPoll()
+    await seedEvent({ id: 'glarm26' })
+    await seedEventPoll('glarm26', pollA, 'Action', 0)
+
+    const first = await SELF.fetch('http://example.com/events/glarm26/join', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Bob' }),
+    })
+    const firstBody = await first.json() as { participants: Array<{ token: string }> }
+
+    const second = await SELF.fetch('http://example.com/events/glarm26/join', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Bob' }),
+    })
+    expect(second.status).toBe(200)
+    const secondBody = await second.json() as { rejoined: boolean; participants: Array<{ token: string }> }
+    expect(secondBody.rejoined).toBe(true)
+    expect(secondBody.participants[0]!.token).toBe(firstBody.participants[0]!.token)
+  })
+
+  it('returns 400 when name is missing', async () => {
+    await seedEvent({ id: 'glarm26' })
+    const res = await SELF.fetch('http://example.com/events/glarm26/join', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    })
+    expect(res.status).toBe(400)
+  })
+})
