@@ -339,6 +339,39 @@ describe('PATCH /events/:slug/pause', () => {
   })
 })
 
+describe('PATCH /events/:slug/votes-visible', () => {
+  beforeEach(applySchema)
+
+  it('toggles votes_visible on all linked polls together', async () => {
+    const { id: pollA } = await seedPoll()
+    const { id: pollB } = await seedPoll()
+    const { adminToken } = await seedEvent({ id: 'glarm26' })
+    await seedEventPoll('glarm26', pollA, 'Action', 0)
+    await seedEventPoll('glarm26', pollB, 'Comedy', 1)
+
+    const res = await SELF.fetch(`http://example.com/events/glarm26/votes-visible?admin=${adminToken}`, { method: 'PATCH' })
+    expect(res.status).toBe(200)
+    const body = await res.json() as { votes_visible: boolean }
+    expect(body.votes_visible).toBe(true)
+
+    const polls = await env.DB.prepare('SELECT votes_visible FROM polls WHERE id IN (?, ?)').bind(pollA, pollB).all<{ votes_visible: number }>()
+    expect(polls.results.every(p => p.votes_visible === 1)).toBe(true)
+
+    const res2 = await SELF.fetch(`http://example.com/events/glarm26/votes-visible?admin=${adminToken}`, { method: 'PATCH' })
+    const body2 = await res2.json() as { votes_visible: boolean }
+    expect(body2.votes_visible).toBe(false)
+  })
+
+  it('rejects an invalid admin token', async () => {
+    const { id: pollA } = await seedPoll()
+    await seedEvent({ id: 'glarm26' })
+    await seedEventPoll('glarm26', pollA, 'Action', 0)
+
+    const res = await SELF.fetch('http://example.com/events/glarm26/votes-visible?admin=not-a-real-token', { method: 'PATCH' })
+    expect(res.status).toBe(401)
+  })
+})
+
 describe('DELETE /events/:slug', () => {
   beforeEach(applySchema)
 

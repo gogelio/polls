@@ -173,6 +173,98 @@ describe('GET /polls/:id draft_ranking', () => {
   })
 })
 
+describe('GET /polls/:id own_vote', () => {
+  beforeEach(applySchema)
+
+  it('returns own_vote in submitted rank order once the participant has voted', async () => {
+    const { id } = await seedPoll({ voting_method: 'ranked_choice', votes_visible: 0 })
+    const { id: pid, token } = await seedParticipant(id)
+    const { id: nid1 } = await seedNomination(id, pid, 'A')
+    const { id: nid2 } = await seedNomination(id, pid, 'B')
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(id).run()
+    await env.DB.batch([
+      env.DB.prepare(
+        'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+      ).bind('v1', id, pid, nid2, 1, Date.now()),
+      env.DB.prepare(
+        'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+      ).bind('v2', id, pid, nid1, 2, Date.now()),
+    ])
+
+    const res = await SELF.fetch(`http://example.com/polls/${id}`, {
+      headers: { 'Participant-Token': token },
+    })
+    const body = await res.json() as { own_vote: string[] | null }
+    expect(body.own_vote).toEqual([nid2, nid1])
+  })
+
+  it('returns own_vote even when votes_visible is off — it is not gated by the aggregate visibility setting', async () => {
+    const { id } = await seedPoll({ voting_method: 'plurality', votes_visible: 0 })
+    const { id: pid, token } = await seedParticipant(id)
+    const { id: nid } = await seedNomination(id, pid, 'A')
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(id).run()
+    await env.DB.prepare(
+      'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+    ).bind('v1', id, pid, nid, null, Date.now()).run()
+
+    const res = await SELF.fetch(`http://example.com/polls/${id}`, {
+      headers: { 'Participant-Token': token },
+    })
+    const body = await res.json() as { own_vote: string[] | null }
+    expect(body.own_vote).toEqual([nid])
+  })
+
+  it('returns own_vote: null before the participant has voted', async () => {
+    const { id } = await seedPoll({ voting_method: 'ranked_choice' })
+    const { id: pid, token } = await seedParticipant(id)
+    await seedNomination(id, pid, 'A')
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(id).run()
+
+    const res = await SELF.fetch(`http://example.com/polls/${id}`, {
+      headers: { 'Participant-Token': token },
+    })
+    const body = await res.json() as { own_vote: string[] | null }
+    expect(body.own_vote).toBeNull()
+  })
+
+  it('never returns another participant\'s own_vote', async () => {
+    const { id } = await seedPoll({ voting_method: 'ranked_choice' })
+    const { id: pidA } = await seedParticipant(id, 'Alice')
+    const { token: tokenB } = await seedParticipant(id, 'Bob')
+    const { id: nid } = await seedNomination(id, pidA, 'A')
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(id).run()
+    await env.DB.prepare(
+      'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+    ).bind('v1', id, pidA, nid, 1, Date.now()).run()
+
+    const res = await SELF.fetch(`http://example.com/polls/${id}`, {
+      headers: { 'Participant-Token': tokenB },
+    })
+    const body = await res.json() as { own_vote: string[] | null }
+    expect(body.own_vote).toBeNull()
+  })
+
+  it('returns own_vote: null with no or invalid participant token', async () => {
+    const { id } = await seedPoll({ voting_method: 'ranked_choice' })
+    const { id: pid } = await seedParticipant(id)
+    const { id: nid } = await seedNomination(id, pid, 'A')
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(id).run()
+    await env.DB.prepare(
+      'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+    ).bind('v1', id, pid, nid, 1, Date.now()).run()
+
+    const noTokenRes = await SELF.fetch(`http://example.com/polls/${id}`)
+    const noTokenBody = await noTokenRes.json() as { own_vote: string[] | null }
+    expect(noTokenBody.own_vote).toBeNull()
+
+    const invalidTokenRes = await SELF.fetch(`http://example.com/polls/${id}`, {
+      headers: { 'Participant-Token': 'not-a-real-token' },
+    })
+    const invalidTokenBody = await invalidTokenRes.json() as { own_vote: string[] | null }
+    expect(invalidTokenBody.own_vote).toBeNull()
+  })
+})
+
 describe('GET /polls/:id nomination order', () => {
   beforeEach(applySchema)
 

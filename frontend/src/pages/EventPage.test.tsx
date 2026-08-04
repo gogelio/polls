@@ -89,6 +89,7 @@ function buildEvent(nominationOrder: string[]): EventPayload {
           })),
           has_voted: false,
           draft_ranking: null,
+          own_vote: null,
           participant_count: 1,
           created_at: 1,
         },

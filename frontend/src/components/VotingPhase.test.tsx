@@ -68,6 +68,7 @@ function buildPoll(overrides: Partial<Poll> = {}): Poll {
     participant_count: 1,
     created_at: 1,
     draft_ranking: null,
+    own_vote: null,
     ...overrides,
   }
 }
@@ -207,6 +208,51 @@ describe('AdminLiveResultsToggle visibility', () => {
     fireEvent.click(screen.getByText('📊 Admin: view live results'))
 
     await waitFor(() => expect(api.getResults).toHaveBeenCalledWith('poll1', 'abc123'))
+  })
+})
+
+describe('own vote visibility after submitting with results hidden', () => {
+  it('shows the voter their own submitted ballot, in submitted order, for an event-scoped poll', () => {
+    const poll = buildPoll({
+      votes_visible: false,
+      has_voted: true,
+      own_vote: ['c', 'a'],
+    })
+    render(
+      <MemoryRouter initialEntries={['/e/glarm26']}>
+        <VotingPhase poll={poll} onRefetch={vi.fn()} eventScoped />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByText('Your vote')).toBeTruthy()
+    expect(screen.getAllByText(/^Movie [ABC]$/).map(el => el.textContent)).toEqual(['Movie C', 'Movie A'])
+    expect(screen.queryByText(/waiting for results/i)).toBeNull()
+  })
+
+  it('falls back to the generic "waiting for results" placeholder for a standalone poll, even with own_vote present', () => {
+    // Regression guard for the eventScoped gate: PollPage never passes
+    // eventScoped, so this must not start showing "Your vote" there too.
+    const poll = buildPoll({
+      votes_visible: false,
+      has_voted: true,
+      own_vote: ['c', 'a'],
+    })
+    render(<VotingPhase poll={poll} onRefetch={vi.fn()} />)
+
+    expect(screen.queryByText('Your vote')).toBeNull()
+    expect(screen.getByText(/waiting for results/i)).toBeTruthy()
+  })
+
+  it('shows the generic "waiting for results" placeholder for an event-scoped poll when own_vote is not yet available', () => {
+    const poll = buildPoll({ votes_visible: false, has_voted: true, own_vote: null })
+    render(
+      <MemoryRouter initialEntries={['/e/glarm26']}>
+        <VotingPhase poll={poll} onRefetch={vi.fn()} eventScoped />
+      </MemoryRouter>
+    )
+
+    expect(screen.queryByText('Your vote')).toBeNull()
+    expect(screen.getByText(/waiting for results/i)).toBeTruthy()
   })
 })
 

@@ -170,6 +170,24 @@ eventsRouter.patch('/:slug/pause', eventAdminAuth, async (c) => {
   return c.json({ is_paused: newValue === 1 })
 })
 
+eventsRouter.patch('/:slug/votes-visible', eventAdminAuth, async (c) => {
+  const slug = c.req.param('slug')
+  const { results: links } = await c.env.DB.prepare(
+    'SELECT poll_id FROM event_polls WHERE event_id = ?'
+  ).bind(slug).all<{ poll_id: string }>()
+  if (links.length === 0) return c.json({ error: 'Event not found' }, 404)
+
+  const firstPoll = await c.env.DB.prepare('SELECT votes_visible FROM polls WHERE id = ?')
+    .bind(links[0]!.poll_id).first<{ votes_visible: number }>()
+  const newValue = firstPoll?.votes_visible === 1 ? 0 : 1
+
+  await c.env.DB.batch(
+    links.map(link => c.env.DB.prepare('UPDATE polls SET votes_visible = ? WHERE id = ?').bind(newValue, link.poll_id))
+  )
+
+  return c.json({ votes_visible: newValue === 1 })
+})
+
 eventsRouter.delete('/:slug', eventAdminAuth, async (c) => {
   const slug = c.req.param('slug')
   const { results: links } = await c.env.DB.prepare(

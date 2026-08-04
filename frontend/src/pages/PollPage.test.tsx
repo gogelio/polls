@@ -81,6 +81,7 @@ function buildPoll(nominationOrder: string[], overrides: Partial<Poll> = {}): Po
     participant_count: 1,
     created_at: 1,
     draft_ranking: null,
+    own_vote: null,
     ...overrides,
   }
 }

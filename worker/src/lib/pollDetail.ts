@@ -24,6 +24,7 @@ export interface PollDetail {
   nominations: PollDetailNomination[] | null
   has_voted: boolean
   draft_ranking: string[] | null
+  own_vote: string[] | null
   participant_count: number
   created_at: number
 }
@@ -58,6 +59,7 @@ export async function buildPollResponse(
 
   let hasVoted = false
   let draftRanking: string[] | null = null
+  let ownVote: string[] | null = null
   if (participantToken && poll.phase !== 'nominating') {
     const participant = await env.DB.prepare(
       'SELECT id, draft_ranking FROM participants WHERE token = ? AND poll_id = ?'
@@ -77,6 +79,15 @@ export async function buildPollResponse(
         } catch {
           draftRanking = null
         }
+      }
+      // A participant can always see their own submitted vote, independent of
+      // votes_visible — that setting only controls the aggregate/live results,
+      // never a voter's own ballot.
+      if (hasVoted) {
+        const { results: ownVotes } = await env.DB.prepare(
+          'SELECT nomination_id FROM votes WHERE poll_id = ? AND participant_id = ? ORDER BY rank ASC'
+        ).bind(id, participant.id).all<{ nomination_id: string }>()
+        ownVote = ownVotes.map(v => v.nomination_id)
       }
     }
   }
@@ -100,6 +111,7 @@ export async function buildPollResponse(
     nominations,
     has_voted: hasVoted,
     draft_ranking: draftRanking,
+    own_vote: ownVote,
     participant_count: participantCountRow?.count ?? 0,
     created_at: poll.created_at,
   }

@@ -217,6 +217,13 @@ export const api = {
     return res.json()
   },
 
+  toggleEventVotesVisible: async (slug: string, adminToken: string): Promise<{ votes_visible: boolean }> => {
+    const res = await throwIfError(await fetch(`${BASE}/events/${slug}/votes-visible?admin=${adminToken}`, {
+      method: 'PATCH',
+    }))
+    return res.json()
+  },
+
   deleteEvent: async (slug: string, adminToken: string): Promise<void> => {
     await throwIfError(await fetch(`${BASE}/events/${slug}?admin=${adminToken}`, {
       method: 'DELETE',

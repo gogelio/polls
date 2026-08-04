@@ -14,6 +14,7 @@ import { ResultsView } from './ResultsView'
 import { NominationMatchEditor } from './NominationMatchEditor'
 import { RemoveNominationControl } from './RemoveNominationControl'
 import { AdminLiveResultsToggle } from './AdminLiveResultsToggle'
+import { OwnVoteSummary } from './OwnVoteSummary'
 
 interface SortableItemProps {
   nomination: PollNomination
@@ -268,6 +269,21 @@ export function VotingPhase({ poll, onRefetch, hideResultsLinks, adminToken, eve
             <p className="text-sm font-semibold text-ink">Vote submitted! Live standings below.</p>
           </div>
           <ResultsView poll={poll} hideLinks={hideResultsLinks} />
+        </div>
+      )
+    }
+    // Aggregate/live results are hidden, but a voter can always see their
+    // own submitted ballot — scoped to events, matching adminResultsToggle,
+    // so a standalone poll keeps the plain "waiting" placeholder below.
+    if (eventScoped && poll.own_vote) {
+      return (
+        <div className="space-y-4">
+          {adminResultsToggle}
+          <div className="card px-5 py-3 flex items-center gap-3">
+            <span className="text-success text-lg">✓</span>
+            <p className="text-sm font-semibold text-ink">Vote submitted! Results are hidden until reveal.</p>
+          </div>
+          <OwnVoteSummary poll={poll} ownVote={poll.own_vote} />
         </div>
       )
     }
