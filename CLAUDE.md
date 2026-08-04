@@ -83,7 +83,7 @@ Worker tests run inside the actual Workers runtime via `@cloudflare/vitest-pool-
 ### Key Constraints
 
 - `migrations_dir = "migrations"` in `wrangler.toml` must be a **top-level key**, not under a `[migrations]` section — the latter breaks vitest-pool-workers
-- `frontend/src/**/*.js` is gitignored; `tsc` emits `.js` files alongside sources during type-checking, which are not committed
+- `frontend/tsconfig.json` sets `noEmit: true` — `tsc` is a type-check gate only; `vite build` does the actual bundling. (Historically `tsc` emitted stray `.js` files alongside sources, which Vite's module resolver would silently prefer over the real `.tsx` — `frontend/src/**/*.js` stays gitignored as a guard.)
 - No WebSockets/Durable Objects (not on Cloudflare free plan) — live updates use 3-second polling
 - TMDB API key is a Worker secret (`wrangler secret put TMDB_API_KEY`); Google Books API key is optional but recommended (`wrangler secret put GOOGLE_BOOKS_API_KEY`) — without it, book search hits rate limits quickly
 - CORS allowlist in `index.ts` explicitly includes `polls.gogel.io`; add any new custom domains there and redeploy the worker
