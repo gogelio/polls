@@ -84,6 +84,28 @@ function SortableItem({ nomination, rank, category, pollId, adminToken, onNomina
   )
 }
 
+function applyDraftOrder(
+  nominations: PollNomination[],
+  draftRanking: string[] | null | undefined
+): PollNomination[] {
+  if (!draftRanking || draftRanking.length === 0) return nominations
+  const remaining = new Map(nominations.map(n => [n.id, n]))
+  const ordered: PollNomination[] = []
+  for (const id of draftRanking) {
+    const nom = remaining.get(id)
+    if (nom) {
+      ordered.push(nom)
+      remaining.delete(id)
+    }
+  }
+  // Any nomination absent from the draft (shouldn't happen once voting has
+  // started, since the list is frozen) is appended at the end.
+  for (const nom of nominations) {
+    if (remaining.has(nom.id)) ordered.push(nom)
+  }
+  return ordered
+}
+
 interface VotingPhaseProps {
   poll: Poll
   onRefetch: () => void
@@ -93,7 +115,7 @@ interface VotingPhaseProps {
 
 export function VotingPhase({ poll, onRefetch, hideResultsLinks, adminToken }: VotingPhaseProps) {
   const nominations = poll.nominations ?? []
-  const [ranked, setRanked] = useState<PollNomination[]>(nominations)
+  const [ranked, setRanked] = useState<PollNomination[]>(() => applyDraftOrder(nominations, poll.draft_ranking))
   const [selected, setSelected] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(poll.has_voted ?? false)
