@@ -54,9 +54,10 @@ export function PollPage() {
     setJoinError(null)
     try {
       const data = await api.joinPoll(id, participantName.trim())
+      if (data.rejoined) setWelcomeBack(true)
+      await refetch()
       setParticipantId(data.participant_id)
       setJoinedName(data.name)
-      if (data.rejoined) setWelcomeBack(true)
     } catch (e) {
       setJoinError(e instanceof Error ? e.message : 'Failed to join')
     } finally {
