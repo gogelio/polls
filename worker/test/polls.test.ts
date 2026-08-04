@@ -55,6 +55,44 @@ describe('GET /polls/:id', () => {
   })
 })
 
+describe('GET /polls/:id draft_ranking', () => {
+  beforeEach(applySchema)
+
+  it('returns the requesting participant draft_ranking during voting', async () => {
+    const { id } = await seedPoll({ voting_method: 'ranked_choice' })
+    const { id: pid, token } = await seedParticipant(id)
+    const { id: nid1 } = await seedNomination(id, pid, 'A')
+    const { id: nid2 } = await seedNomination(id, pid, 'B')
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(id).run()
+    await env.DB.prepare('UPDATE participants SET draft_ranking = ? WHERE id = ?')
+      .bind(JSON.stringify([nid2, nid1]), pid).run()
+
+    const res = await SELF.fetch(`http://example.com/polls/${id}`, {
+      headers: { 'Participant-Token': token },
+    })
+    const body = await res.json() as { draft_ranking: string[] | null }
+    expect(body.draft_ranking).toEqual([nid2, nid1])
+  })
+
+  it('omits draft_ranking once the participant has voted', async () => {
+    const { id } = await seedPoll({ voting_method: 'ranked_choice' })
+    const { id: pid, token } = await seedParticipant(id)
+    const { id: nid } = await seedNomination(id, pid, 'A')
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(id).run()
+    await env.DB.prepare('UPDATE participants SET draft_ranking = ? WHERE id = ?')
+      .bind(JSON.stringify([nid]), pid).run()
+    await env.DB.prepare(
+      'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+    ).bind('v1', id, pid, nid, 1, Date.now()).run()
+
+    const res = await SELF.fetch(`http://example.com/polls/${id}`, {
+      headers: { 'Participant-Token': token },
+    })
+    const body = await res.json() as { draft_ranking: string[] | null }
+    expect(body.draft_ranking).toBeNull()
+  })
+})
+
 describe('PATCH /polls/:id/phase', () => {
   beforeEach(applySchema)
 

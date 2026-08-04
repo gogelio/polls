@@ -22,6 +22,7 @@ export interface PollDetail {
   nomination_closes_at: number | null
   nominations: PollDetailNomination[] | null
   has_voted: boolean
+  draft_ranking: string[] | null
   participant_count: number
   created_at: number
 }
@@ -55,15 +56,19 @@ export async function buildPollResponse(
   }
 
   let hasVoted = false
+  let draftRanking: string[] | null = null
   if (participantToken && poll.phase !== 'nominating') {
     const participant = await env.DB.prepare(
-      'SELECT id FROM participants WHERE token = ? AND poll_id = ?'
-    ).bind(participantToken, id).first<{ id: string }>()
+      'SELECT id, draft_ranking FROM participants WHERE token = ? AND poll_id = ?'
+    ).bind(participantToken, id).first<{ id: string; draft_ranking: string | null }>()
     if (participant) {
       const voteRow = await env.DB.prepare(
         'SELECT id FROM votes WHERE poll_id = ? AND participant_id = ? LIMIT 1'
       ).bind(id, participant.id).first()
       hasVoted = !!voteRow
+      if (poll.phase === 'voting' && poll.voting_method !== 'plurality' && !hasVoted && participant.draft_ranking) {
+        draftRanking = JSON.parse(participant.draft_ranking) as string[]
+      }
     }
   }
 
@@ -85,6 +90,7 @@ export async function buildPollResponse(
     nomination_closes_at: poll.nomination_closes_at,
     nominations,
     has_voted: hasVoted,
+    draft_ranking: draftRanking,
     participant_count: participantCountRow?.count ?? 0,
     created_at: poll.created_at,
   }
