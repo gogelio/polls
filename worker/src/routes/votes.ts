@@ -54,13 +54,19 @@ votesRouter.patch('/:id/vote-draft', participantAuth, async (c) => {
   const participantId = c.get('participantId')
 
   const poll = await c.env.DB.prepare(
-    'SELECT id, phase, voting_method FROM polls WHERE id = ?'
-  ).bind(pollId).first<Pick<Poll, 'id' | 'phase' | 'voting_method'>>()
+    'SELECT id, phase, voting_method, is_paused FROM polls WHERE id = ?'
+  ).bind(pollId).first<Pick<Poll, 'id' | 'phase' | 'voting_method' | 'is_paused'>>()
   if (!poll) return c.json({ error: 'Poll not found' }, 404)
   if (poll.phase !== 'voting') return c.json({ error: 'Poll is not in voting phase' }, 400)
+  if (poll.is_paused) return c.json({ error: 'Poll is paused' }, 403)
   if (poll.voting_method === 'plurality') {
     return c.json({ error: 'Drafts are not supported for plurality polls' }, 400)
   }
+
+  const existingVote = await c.env.DB.prepare(
+    'SELECT id FROM votes WHERE poll_id = ? AND participant_id = ? LIMIT 1'
+  ).bind(pollId, participantId).first()
+  if (existingVote) return c.json({ error: 'You have already voted' }, 400)
 
   const body = await c.req.json<{ ranking?: string[] }>()
   const ranking = body.ranking
@@ -76,6 +82,9 @@ votesRouter.patch('/:id/vote-draft', participantAuth, async (c) => {
     if (!validNomIds.has(nomId)) {
       return c.json({ error: `Nomination ${nomId} not found in this poll` }, 400)
     }
+  }
+  if (ranking.length > validNomIds.size || new Set(ranking).size !== ranking.length) {
+    return c.json({ error: 'ranking must not exceed the nomination count or contain duplicates' }, 400)
   }
 
   await c.env.DB.prepare(

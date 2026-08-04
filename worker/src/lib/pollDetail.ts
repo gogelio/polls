@@ -67,7 +67,12 @@ export async function buildPollResponse(
       ).bind(id, participant.id).first()
       hasVoted = !!voteRow
       if (poll.phase === 'voting' && poll.voting_method !== 'plurality' && !hasVoted && participant.draft_ranking) {
-        draftRanking = JSON.parse(participant.draft_ranking) as string[]
+        try {
+          const parsed = JSON.parse(participant.draft_ranking)
+          draftRanking = Array.isArray(parsed) ? parsed as string[] : null
+        } catch {
+          draftRanking = null
+        }
       }
     }
   }

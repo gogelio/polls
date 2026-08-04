@@ -155,6 +155,22 @@ describe('GET /polls/:id draft_ranking', () => {
     const invalidTokenBody = await invalidTokenRes.json() as { draft_ranking: string[] | null }
     expect(invalidTokenBody.draft_ranking).toBeNull()
   })
+
+  it('returns draft_ranking: null instead of 500ing when the stored value is malformed JSON', async () => {
+    const { id } = await seedPoll({ voting_method: 'ranked_choice' })
+    const { id: pid, token } = await seedParticipant(id)
+    await seedNomination(id, pid, 'A')
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(id).run()
+    await env.DB.prepare('UPDATE participants SET draft_ranking = ? WHERE id = ?')
+      .bind('not valid json', pid).run()
+
+    const res = await SELF.fetch(`http://example.com/polls/${id}`, {
+      headers: { 'Participant-Token': token },
+    })
+    expect(res.status).toBe(200)
+    const body = await res.json() as { draft_ranking: string[] | null }
+    expect(body.draft_ranking).toBeNull()
+  })
 })
 
 describe('PATCH /polls/:id/phase', () => {
