@@ -1,4 +1,4 @@
-import type { Poll, PollResults, PublicPollSummary, SearchResult } from '../types'
+import type { Poll, PollResults, PublicPollSummary, SearchResult, EventPayload } from '../types'
 
 const BASE = import.meta.env.VITE_API_URL ?? '/api'
 
@@ -145,6 +145,47 @@ export const api = {
       headers: participantHeaders(pollId),
     }))
     return res.json()
+  },
+
+  getEvent: async (slug: string, pollIds: string[] = []): Promise<EventPayload> => {
+    const tokenPairs = pollIds
+      .map(id => { const t = getToken(id); return t ? `${id}:${t}` : null })
+      .filter((v): v is string => v !== null)
+    const headers: HeadersInit = tokenPairs.length ? { 'Participant-Tokens': tokenPairs.join(',') } : {}
+    const res = await throwIfError(await fetch(`${BASE}/events/${slug}`, { headers }))
+    return res.json()
+  },
+
+  joinEvent: async (slug: string, name: string) => {
+    const res = await throwIfError(await fetch(`${BASE}/events/${slug}/join`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    }))
+    const data = await res.json() as { name: string; rejoined: boolean; participants: Array<{ poll_id: string; participant_id: string; token: string }> }
+    data.participants.forEach(p => setToken(p.poll_id, p.token))
+    return data
+  },
+
+  closeEvent: async (slug: string, adminToken: string): Promise<void> => {
+    await throwIfError(await fetch(`${BASE}/events/${slug}/phase?admin=${adminToken}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phase: 'closed' }),
+    }))
+  },
+
+  toggleEventPause: async (slug: string, adminToken: string): Promise<{ is_paused: boolean }> => {
+    const res = await throwIfError(await fetch(`${BASE}/events/${slug}/pause?admin=${adminToken}`, {
+      method: 'PATCH',
+    }))
+    return res.json()
+  },
+
+  deleteEvent: async (slug: string, adminToken: string): Promise<void> => {
+    await throwIfError(await fetch(`${BASE}/events/${slug}?admin=${adminToken}`, {
+      method: 'DELETE',
+    }))
   },
 
   hasToken: (pollId: string) => !!getToken(pollId),
