@@ -102,7 +102,7 @@ export function EventPage() {
       <div className="max-w-2xl mx-auto py-8 px-4 space-y-4">
         {header}
         <div className="card p-6">
-          <p className="font-bold text-ink mb-4">Join this event</p>
+          <p className="font-bold text-ink mb-4">Join this event (use a memorable nickname)</p>
           <form onSubmit={handleJoin} className="space-y-3">
             <input
               className="input"
