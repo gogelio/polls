@@ -122,10 +122,24 @@ export function VotingPhase({ poll, onRefetch, hideResultsLinks, adminToken }: V
   const [error, setError] = useState<string | null>(null)
   const [draftStatus, setDraftStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const draftTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const hasDraggedRef = useRef(false)
+  const hasAppliedDraftRef = useRef(!!poll.draft_ranking?.length)
 
   useEffect(() => {
     if (poll.has_voted) setSubmitted(true)
   }, [poll.has_voted])
+
+  // On a new device, the poll fetch that happens before joining has no
+  // participant token yet, so draft_ranking arrives null and `ranked` seeds
+  // from nomination order. Once the next 3-second poll tick delivers the
+  // real draft, apply it — but only the first time, and only if the
+  // participant hasn't already started reordering (don't clobber drags).
+  useEffect(() => {
+    if (hasAppliedDraftRef.current || hasDraggedRef.current) return
+    if (!poll.draft_ranking || poll.draft_ranking.length === 0) return
+    setRanked(applyDraftOrder(nominations, poll.draft_ranking))
+    hasAppliedDraftRef.current = true
+  }, [poll.draft_ranking, nominations])
 
   // Keep each ballot row's content (title/metadata) in sync with the latest poll
   // data — e.g. after an admin fixes a nomination's TMDB match — without disturbing
@@ -166,6 +180,7 @@ export function VotingPhase({ poll, onRefetch, hideResultsLinks, adminToken }: V
   }
 
   const handleDragEnd = (event: DragEndEvent) => {
+    hasDraggedRef.current = true
     const { active, over } = event
     if (!over || active.id === over.id) return
     setRanked(items => {
@@ -179,13 +194,17 @@ export function VotingPhase({ poll, onRefetch, hideResultsLinks, adminToken }: V
 
   useEffect(() => {
     return () => {
-      if (draftTimeoutRef.current) clearTimeout(draftTimeoutRef.current)
+      if (draftTimeoutRef.current) {
+        clearTimeout(draftTimeoutRef.current)
+        draftTimeoutRef.current = null
+      }
     }
   }, [])
 
   useEffect(() => {
     if (submitted && draftTimeoutRef.current) {
       clearTimeout(draftTimeoutRef.current)
+      draftTimeoutRef.current = null
     }
   }, [submitted])
 
@@ -251,7 +270,7 @@ export function VotingPhase({ poll, onRefetch, hideResultsLinks, adminToken }: V
         </p>
 
         {poll.voting_method !== 'plurality' && draftStatus !== 'idle' && (
-          <p className="text-xs text-ink-3 mb-2">
+          <p className="text-xs text-ink-3 mb-2" aria-live="polite">
             {draftStatus === 'saving' && 'Saving draft…'}
             {draftStatus === 'saved' && 'Draft saved'}
             {draftStatus === 'error' && "Couldn't save draft — it'll retry on your next change"}

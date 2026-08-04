@@ -8,4 +8,7 @@ export default defineConfig({
       '/api': { target: 'http://localhost:8787', rewrite: path => path.replace(/^\/api/, '') },
     },
   },
+  test: {
+    include: ['src/**/*.test.{ts,tsx}'],
+  },
 })
