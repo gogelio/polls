@@ -6,6 +6,7 @@ import { participantsRouter } from './routes/participants'
 import { nominationsRouter } from './routes/nominations'
 import { votesRouter } from './routes/votes'
 import { searchRouter } from './routes/search'
+import { eventsRouter } from './routes/events'
 
 const app = new Hono<{ Bindings: Env }>()
 
@@ -30,5 +31,6 @@ app.route('/polls', participantsRouter)
 app.route('/polls', nominationsRouter)
 app.route('/polls', votesRouter)
 app.route('/search', searchRouter)
+app.route('/events', eventsRouter)
 
 export default app

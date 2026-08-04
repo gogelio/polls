@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
   type DragEndEvent,
@@ -59,6 +59,17 @@ function SortableItem({ nomination, rank, category }: SortableItemProps) {
         )}
         {meta?.author && <div className="text-xs text-ink-3">{meta.author}</div>}
         {meta?.director && <div className="text-xs text-ink-3">{meta.director}</div>}
+        {meta?.trailer_url && (
+          <a
+            href={meta.trailer_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={e => e.stopPropagation()}
+            className="text-xs text-accent hover:underline"
+          >
+            ▶ Trailer
+          </a>
+        )}
       </div>
       <span className="text-ink-3 text-lg select-none flex-shrink-0">⠿</span>
     </div>
@@ -77,6 +88,10 @@ export function VotingPhase({ poll, onRefetch }: VotingPhaseProps) {
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(poll.has_voted ?? false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (poll.has_voted) setSubmitted(true)
+  }, [poll.has_voted])
 
   const sensors = useSensors(
     useSensor(PointerSensor),

@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { CreatePoll } from './pages/CreatePoll'
 import { PollPage } from './pages/PollPage'
 import { LearnPage } from './pages/LearnPage'
+import { EventPage } from './pages/EventPage'
 import { useReducedMotion } from './hooks/useReducedMotion'
 
 const Dither = lazy(() => import('./components/Dither'))
@@ -35,6 +36,7 @@ export default function App() {
           <Route path="/" element={<CreatePoll />} />
           <Route path="/p/:id" element={<PollPage />} />
           <Route path="/learn" element={<LearnPage />} />
+          <Route path="/e/:slug" element={<EventPage />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </div>

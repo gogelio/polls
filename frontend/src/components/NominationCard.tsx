@@ -33,6 +33,17 @@ export function NominationCard({ nomination, category, onDelete }: NominationCar
           {meta?.director && (
             <div className="text-xs text-ink-2">{meta.director}{meta.year ? ` · ${meta.year}` : ''}</div>
           )}
+          {meta?.trailer_url && (
+            <a
+              href={meta.trailer_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()}
+              className="text-xs text-accent hover:underline"
+            >
+              ▶ Trailer
+            </a>
+          )}
           <div className="text-xs text-ink-3 mt-0.5">by {nomination.participant_name}</div>
         </div>
         {onDelete && (
