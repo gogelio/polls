@@ -1,6 +1,15 @@
 import type { Context, Next } from 'hono'
 import type { Env } from '../types'
 
+// Constant-time comparison to prevent timing attacks
+function tokensMatch(a: string, b: string): boolean {
+  const encoder = new TextEncoder()
+  const aBytes = encoder.encode(a)
+  const bBytes = encoder.encode(b)
+  if (aBytes.length !== bBytes.length) return false
+  return crypto.subtle.timingSafeEqual(aBytes, bBytes)
+}
+
 export async function participantAuth(
   c: Context<{ Bindings: Env; Variables: { participantId: string } }>,
   next: Next
@@ -37,15 +46,29 @@ export async function adminAuth(
 
   if (!poll) return c.json({ error: 'Poll not found' }, 404)
 
-  // Constant-time comparison to prevent timing attacks
-  const encoder = new TextEncoder()
-  const a = encoder.encode(adminToken)
-  const b = encoder.encode(poll.admin_token)
-  if (a.length !== b.length) return c.json({ error: 'Invalid admin token' }, 401)
-  const equal = crypto.subtle.timingSafeEqual(a, b)
-  if (!equal) return c.json({ error: 'Invalid admin token' }, 401)
+  if (tokensMatch(adminToken, poll.admin_token)) {
+    await next()
+    return
+  }
 
-  await next()
+  // Fall back to the admin token of an event this poll is linked to, if any —
+  // one event admin token administers every one of its linked category polls,
+  // so the operator only ever needs to hand out the single event admin URL.
+  const link = await c.env.DB.prepare(
+    'SELECT event_id FROM event_polls WHERE poll_id = ?'
+  ).bind(pollId).first<{ event_id: string }>()
+
+  if (link) {
+    const event = await c.env.DB.prepare(
+      'SELECT admin_token FROM events WHERE id = ?'
+    ).bind(link.event_id).first<{ admin_token: string }>()
+    if (event && tokensMatch(adminToken, event.admin_token)) {
+      await next()
+      return
+    }
+  }
+
+  return c.json({ error: 'Invalid admin token' }, 401)
 }
 
 export async function eventAdminAuth(
@@ -62,12 +85,9 @@ export async function eventAdminAuth(
 
   if (!event) return c.json({ error: 'Event not found' }, 404)
 
-  const encoder = new TextEncoder()
-  const a = encoder.encode(adminToken)
-  const b = encoder.encode(event.admin_token)
-  if (a.length !== b.length) return c.json({ error: 'Invalid admin token' }, 401)
-  const equal = crypto.subtle.timingSafeEqual(a, b)
-  if (!equal) return c.json({ error: 'Invalid admin token' }, 401)
+  if (!tokensMatch(adminToken, event.admin_token)) {
+    return c.json({ error: 'Invalid admin token' }, 401)
+  }
 
   await next()
 }

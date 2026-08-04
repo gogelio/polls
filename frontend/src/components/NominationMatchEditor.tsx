@@ -64,6 +64,7 @@ export function NominationMatchEditor({ pollId, nominationId, adminToken, onUpda
     return (
       <button
         type="button"
+        onPointerDown={e => e.stopPropagation()}
         onClick={e => { e.preventDefault(); e.stopPropagation(); setOpen(true) }}
         className="text-xs text-ink-3 hover:text-accent transition-colors"
       >
@@ -73,7 +74,7 @@ export function NominationMatchEditor({ pollId, nominationId, adminToken, onUpda
   }
 
   return (
-    <div className="relative space-y-1" onClick={e => e.stopPropagation()}>
+    <div className="relative space-y-1" onPointerDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
       <input
         className="input text-xs py-1"
         value={query}

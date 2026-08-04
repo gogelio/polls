@@ -100,6 +100,25 @@ export function VotingPhase({ poll, onRefetch, hideResultsLinks, adminToken }: V
     if (poll.has_voted) setSubmitted(true)
   }, [poll.has_voted])
 
+  // Keep each ballot row's content (title/metadata) in sync with the latest poll
+  // data — e.g. after an admin fixes a nomination's TMDB match — without disturbing
+  // the order the participant has already dragged into.
+  useEffect(() => {
+    setRanked(prev => {
+      const byId = new Map(nominations.map(n => [n.id, n]))
+      let changed = false
+      const next = prev.map(n => {
+        const latest = byId.get(n.id)
+        if (latest && (latest.title !== n.title || latest.metadata !== n.metadata)) {
+          changed = true
+          return latest
+        }
+        return n
+      })
+      return changed ? next : prev
+    })
+  }, [nominations])
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })

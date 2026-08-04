@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { SELF, env } from 'cloudflare:test'
-import { applySchema, seedPoll, seedParticipant, seedNomination } from './helpers'
+import { applySchema, seedPoll, seedParticipant, seedNomination, seedEvent, seedEventPoll } from './helpers'
 
 describe('POST /polls/:id/nominations', () => {
   beforeEach(applySchema)
@@ -179,6 +179,59 @@ describe('PATCH /polls/:id/nominations/:nid', () => {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title: 'Anything' }),
+    })
+    expect(res.status).toBe(401)
+  })
+})
+
+describe('adminAuth event-token fallback for event-linked polls', () => {
+  beforeEach(applySchema)
+
+  it('accepts the event admin token for a poll linked to that event', async () => {
+    const { id: pollId } = await seedPoll()
+    const { id: pid } = await seedParticipant(pollId)
+    const { id: nid } = await seedNomination(pollId, pid, 'Wrong Movie')
+    const { id: eventId, adminToken: eventAdminToken } = await seedEvent()
+    await seedEventPoll(eventId, pollId, 'Action', 0)
+
+    const res = await SELF.fetch(`http://example.com/polls/${pollId}/nominations/${nid}?admin=${eventAdminToken}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Correct Movie' }),
+    })
+    expect(res.status).toBe(200)
+
+    const searchRes = await SELF.fetch(`http://example.com/polls/${pollId}/nominations/search-movies?q=dune&admin=${eventAdminToken}`)
+    expect(searchRes.status).not.toBe(401)
+  })
+
+  it('rejects the admin token of an unrelated event', async () => {
+    const { id: pollId } = await seedPoll()
+    const { id: pid } = await seedParticipant(pollId)
+    const { id: nid } = await seedNomination(pollId, pid)
+    const { id: eventId } = await seedEvent()
+    await seedEventPoll(eventId, pollId, 'Action', 0)
+    const { adminToken: otherEventAdminToken } = await seedEvent({ id: 'other-event' })
+
+    const res = await SELF.fetch(`http://example.com/polls/${pollId}/nominations/${nid}?admin=${otherEventAdminToken}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Should not work' }),
+    })
+    expect(res.status).toBe(401)
+  })
+
+  it('rejects an event admin token for a poll not linked to that event', async () => {
+    const { id: pollId } = await seedPoll()
+    const { id: pid } = await seedParticipant(pollId)
+    const { id: nid } = await seedNomination(pollId, pid)
+    const { adminToken: eventAdminToken } = await seedEvent()
+    // Note: pollId is never linked via seedEventPoll
+
+    const res = await SELF.fetch(`http://example.com/polls/${pollId}/nominations/${nid}?admin=${eventAdminToken}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Should not work' }),
     })
     expect(res.status).toBe(401)
   })
