@@ -21,7 +21,8 @@ export function AdminLiveResultsToggle({ poll }: AdminLiveResultsToggleProps) {
       >
         {open ? '📊 Hide live results' : '📊 Admin: view live results'}
       </button>
-      {open && <ResultsView poll={poll} hideLinks />}
+      {/* Only ever rendered from VotingPhase's eventScoped admin gate. */}
+      {open && <ResultsView poll={poll} hideLinks hideNominatedBy />}
     </div>
   )
 }

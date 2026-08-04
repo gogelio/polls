@@ -268,7 +268,7 @@ export function VotingPhase({ poll, onRefetch, hideResultsLinks, adminToken, eve
             <span className="text-success text-lg">✓</span>
             <p className="text-sm font-semibold text-ink">Vote submitted! Live standings below.</p>
           </div>
-          <ResultsView poll={poll} hideLinks={hideResultsLinks} />
+          <ResultsView poll={poll} hideLinks={hideResultsLinks} hideNominatedBy={eventScoped} />
         </div>
       )
     }

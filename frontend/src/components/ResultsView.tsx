@@ -4,9 +4,9 @@ import type { Poll, PollResults, NominationMetadata } from '../types'
 import { api } from '../api/client'
 import { NominationMatchEditor } from './NominationMatchEditor'
 
-interface ResultsViewProps { poll: Poll; hideLinks?: boolean }
+interface ResultsViewProps { poll: Poll; hideLinks?: boolean; hideNominatedBy?: boolean }
 
-export function ResultsView({ poll, hideLinks }: ResultsViewProps) {
+export function ResultsView({ poll, hideLinks, hideNominatedBy }: ResultsViewProps) {
   const [searchParams] = useSearchParams()
   const adminToken = searchParams.get('admin')
   const publicUrl = `${window.location.origin}${window.location.pathname}`
@@ -45,6 +45,11 @@ export function ResultsView({ poll, hideLinks }: ResultsViewProps) {
   const leaderLabel = results.tied
     ? 'Tied'
     : poll.phase === 'closed' ? 'Winner' : 'Winning'
+
+  // own_vote is the requesting participant's own submitted ranking (or,
+  // for plurality, their single choice) — its first entry is their top
+  // pick, marked wherever it appears in the standings.
+  const myPickId = poll.own_vote?.[0] ?? null
 
   return (
     <div className="space-y-4">
@@ -89,7 +94,10 @@ export function ResultsView({ poll, hideLinks }: ResultsViewProps) {
                     )}
                     {meta?.author && <p className="text-ink-2 text-sm mt-0.5">{meta.author}</p>}
                     {meta?.director && <p className="text-ink-2 text-sm mt-0.5">{meta.director}</p>}
-                    {leader.nominated_by && <p className="text-ink-3 text-xs mt-1">nominated by {leader.nominated_by}</p>}
+                    {leader.nomination_id === myPickId && (
+                      <p className="text-accent text-xs font-bold mt-1">🎯 Your pick</p>
+                    )}
+                    {!hideNominatedBy && leader.nominated_by && <p className="text-ink-3 text-xs mt-1">nominated by {leader.nominated_by}</p>}
                     {poll.category === 'movie' && adminToken && (
                       <div className="mt-1">
                         <NominationMatchEditor
@@ -137,7 +145,10 @@ export function ResultsView({ poll, hideLinks }: ResultsViewProps) {
                   ) : (
                     <span className="text-sm font-semibold text-ink truncate block">{standingDisplayTitle}</span>
                   )}
-                  {r.nominated_by && <span className="text-xs text-ink-3">nominated by {r.nominated_by}</span>}
+                  {r.nomination_id === myPickId && (
+                    <span className="block text-accent text-xs font-bold">🎯 Your pick</span>
+                  )}
+                  {!hideNominatedBy && r.nominated_by && <span className="text-xs text-ink-3">nominated by {r.nominated_by}</span>}
                   {poll.category === 'movie' && adminToken && (
                     <div className="mt-0.5">
                       <NominationMatchEditor
