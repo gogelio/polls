@@ -74,3 +74,37 @@ export interface SearchResult {
   cover_url?: string | null
   poster_url?: string | null
 }
+
+export interface EventCategory {
+  category: string
+  sort_order: number
+  poll: Poll
+}
+
+export interface EventSlotMovie {
+  nomination_id: string
+  title: string
+}
+
+export interface EventSlot {
+  slot_order: number
+  category: string
+  placement: 1 | 2
+  status: 'awaiting_votes' | 'resolved' | 'unresolved'
+  movies: EventSlotMovie[]
+}
+
+export interface EventDay {
+  day: string
+  slots: EventSlot[]
+}
+
+export interface EventPayload {
+  id: string
+  title: string
+  is_public: boolean
+  phase: Phase
+  categories: EventCategory[]
+  schedule: EventDay[]
+  created_at: number
+}
