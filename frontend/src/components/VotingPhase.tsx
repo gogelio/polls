@@ -59,6 +59,17 @@ function SortableItem({ nomination, rank, category }: SortableItemProps) {
         )}
         {meta?.author && <div className="text-xs text-ink-3">{meta.author}</div>}
         {meta?.director && <div className="text-xs text-ink-3">{meta.director}</div>}
+        {meta?.trailer_url && (
+          <a
+            href={meta.trailer_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={e => e.stopPropagation()}
+            className="text-xs text-accent hover:underline"
+          >
+            ▶ Trailer
+          </a>
+        )}
       </div>
       <span className="text-ink-3 text-lg select-none flex-shrink-0">⠿</span>
     </div>
