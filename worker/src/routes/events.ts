@@ -133,3 +133,21 @@ eventsRouter.patch('/:slug/phase', eventAdminAuth, async (c) => {
 
   return c.json({ phase: 'closed' })
 })
+
+eventsRouter.patch('/:slug/pause', eventAdminAuth, async (c) => {
+  const slug = c.req.param('slug')
+  const { results: links } = await c.env.DB.prepare(
+    'SELECT poll_id FROM event_polls WHERE event_id = ?'
+  ).bind(slug).all<{ poll_id: string }>()
+  if (links.length === 0) return c.json({ error: 'Event not found' }, 404)
+
+  const firstPoll = await c.env.DB.prepare('SELECT is_paused FROM polls WHERE id = ?')
+    .bind(links[0]!.poll_id).first<{ is_paused: number }>()
+  const newValue = firstPoll?.is_paused === 1 ? 0 : 1
+
+  await c.env.DB.batch(
+    links.map(link => c.env.DB.prepare('UPDATE polls SET is_paused = ? WHERE id = ?').bind(newValue, link.poll_id))
+  )
+
+  return c.json({ is_paused: newValue === 1 })
+})

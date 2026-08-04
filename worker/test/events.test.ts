@@ -197,3 +197,27 @@ describe('PATCH /events/:slug/phase', () => {
     expect(res.status).toBe(401)
   })
 })
+
+describe('PATCH /events/:slug/pause', () => {
+  beforeEach(applySchema)
+
+  it('toggles is_paused on all linked polls together', async () => {
+    const { id: pollA } = await seedPoll()
+    const { id: pollB } = await seedPoll()
+    const { adminToken } = await seedEvent({ id: 'glarm26' })
+    await seedEventPoll('glarm26', pollA, 'Action', 0)
+    await seedEventPoll('glarm26', pollB, 'Comedy', 1)
+
+    const res = await SELF.fetch(`http://example.com/events/glarm26/pause?admin=${adminToken}`, { method: 'PATCH' })
+    expect(res.status).toBe(200)
+    const body = await res.json() as { is_paused: boolean }
+    expect(body.is_paused).toBe(true)
+
+    const polls = await env.DB.prepare('SELECT is_paused FROM polls WHERE id IN (?, ?)').bind(pollA, pollB).all<{ is_paused: number }>()
+    expect(polls.results.every(p => p.is_paused === 1)).toBe(true)
+
+    const res2 = await SELF.fetch(`http://example.com/events/glarm26/pause?admin=${adminToken}`, { method: 'PATCH' })
+    const body2 = await res2.json() as { is_paused: boolean }
+    expect(body2.is_paused).toBe(false)
+  })
+})
