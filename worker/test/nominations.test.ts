@@ -89,6 +89,33 @@ describe('DELETE /polls/:id/nominations/:nid', () => {
     )
     expect(res.status).toBe(404)
   })
+
+  it('cascades the delete to any votes already cast for the nomination, leaving other votes intact', async () => {
+    const { id, adminToken } = await seedPoll({ voting_method: 'ranked_choice' })
+    const { id: nominatorId } = await seedParticipant(id, 'Nominator')
+    const { id: nid1 } = await seedNomination(id, nominatorId, 'A')
+    const { id: nid2 } = await seedNomination(id, nominatorId, 'B')
+    const { id: voterId } = await seedParticipant(id, 'Voter')
+
+    await env.DB.batch([
+      env.DB.prepare(
+        'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+      ).bind('v1', id, voterId, nid1, 1, Date.now()),
+      env.DB.prepare(
+        'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+      ).bind('v2', id, voterId, nid2, 2, Date.now()),
+    ])
+
+    const res = await SELF.fetch(
+      `http://example.com/polls/${id}/nominations/${nid1}?admin=${adminToken}`,
+      { method: 'DELETE' }
+    )
+    expect(res.status).toBe(200)
+
+    const { results } = await env.DB.prepare('SELECT id, nomination_id FROM votes WHERE poll_id = ?').bind(id).all()
+    expect(results.map(r => r.id)).toEqual(['v2'])
+    expect(results.map(r => r.nomination_id)).toEqual([nid2])
+  })
 })
 
 describe('POST /polls/:id/nominations - validation', () => {

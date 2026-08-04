@@ -43,10 +43,21 @@ nominationsRouter.post('/:id/nominations', participantAuth, async (c) => {
 nominationsRouter.delete('/:id/nominations/:nid', adminAuth, async (c) => {
   const pollId = c.req.param('id')
   const nid = c.req.param('nid')
-  const result = await c.env.DB.prepare(
-    'DELETE FROM nominations WHERE id = ? AND poll_id = ?'
-  ).bind(nid, pollId).run()
-  if (result.meta.changes === 0) return c.json({ error: 'Nomination not found' }, 404)
+
+  const nomination = await c.env.DB.prepare(
+    'SELECT id FROM nominations WHERE id = ? AND poll_id = ?'
+  ).bind(nid, pollId).first<{ id: string }>()
+  if (!nomination) return c.json({ error: 'Nomination not found' }, 404)
+
+  // Cascade the delete to any votes already cast for this nomination — a
+  // nomination can be removed after voting has started (e.g. it was found
+  // to be a duplicate or a bad TMDB match wasn't fixable), and leaving
+  // those rows behind would be silently ignored by scoring but linger as
+  // orphaned data.
+  await c.env.DB.batch([
+    c.env.DB.prepare('DELETE FROM votes WHERE poll_id = ? AND nomination_id = ?').bind(pollId, nid),
+    c.env.DB.prepare('DELETE FROM nominations WHERE id = ? AND poll_id = ?').bind(nid, pollId),
+  ])
   return c.json({ success: true })
 })
 

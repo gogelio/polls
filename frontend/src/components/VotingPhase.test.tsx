@@ -138,6 +138,29 @@ describe('VotingPhase draft ordering', () => {
 
     expect(screen.getAllByText(/^Movie [ABC]$/).map(el => el.textContent)).toEqual(['Movie B', 'Movie A', 'Movie C'])
   })
+
+  it('drops a row from the ballot once its nomination disappears from a later poll fetch (admin removed it)', () => {
+    // Regression test: the "sync row content with fresh poll data" effect
+    // used to only update title/metadata for nominations still present —
+    // it never pruned ones that vanished, so a removed nomination lingered
+    // in the ballot forever (and its RemoveNominationControl got stuck on
+    // "Removing…" since the row it belonged to never actually unmounted).
+    const initialPoll = buildPoll({ draft_ranking: null })
+    const { rerender } = render(<VotingPhase poll={initialPoll} onRefetch={vi.fn()} />)
+    expect(screen.getAllByText(/^Movie [ABC]$/).map(el => el.textContent)).toEqual(['Movie A', 'Movie B', 'Movie C'])
+
+    const afterRemoval = buildPoll({
+      draft_ranking: null,
+      nominations: [
+        { id: 'a', title: 'Movie A', metadata: null, participant_name: 'Alice', created_at: 1 },
+        { id: 'c', title: 'Movie C', metadata: null, participant_name: 'Alice', created_at: 3 },
+      ],
+    })
+    rerender(<VotingPhase poll={afterRemoval} onRefetch={vi.fn()} />)
+
+    expect(screen.getAllByText(/^Movie [AC]$/).map(el => el.textContent)).toEqual(['Movie A', 'Movie C'])
+    expect(screen.queryByText('Movie B')).toBeNull()
+  })
 })
 
 describe('NominationMatchEditor inside a sortable row', () => {

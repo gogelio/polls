@@ -12,6 +12,7 @@ import type { Category, Poll, PollNomination, NominationMetadata } from '../type
 import { api } from '../api/client'
 import { ResultsView } from './ResultsView'
 import { NominationMatchEditor } from './NominationMatchEditor'
+import { RemoveNominationControl } from './RemoveNominationControl'
 
 interface SortableItemProps {
   nomination: PollNomination
@@ -69,12 +70,20 @@ function SortableItem({ nomination, rank, category, pollId, adminToken, onNomina
         {meta?.author && <div className="text-xs text-ink-3">{meta.author}</div>}
         {meta?.director && <div className="text-xs text-ink-3">{meta.director}</div>}
         {category === 'movie' && adminToken && (
-          <NominationMatchEditor
-            pollId={pollId}
-            nominationId={nomination.id}
-            adminToken={adminToken}
-            onUpdated={onNominationUpdated}
-          />
+          <div className="flex flex-wrap items-center gap-3">
+            <NominationMatchEditor
+              pollId={pollId}
+              nominationId={nomination.id}
+              adminToken={adminToken}
+              onUpdated={onNominationUpdated}
+            />
+            <RemoveNominationControl
+              pollId={pollId}
+              nominationId={nomination.id}
+              adminToken={adminToken}
+              onRemoved={onNominationUpdated}
+            />
+          </div>
         )}
       </div>
       <button
@@ -150,19 +159,25 @@ export function VotingPhase({ poll, onRefetch, hideResultsLinks, adminToken }: V
 
   // Keep each ballot row's content (title/metadata) in sync with the latest poll
   // data — e.g. after an admin fixes a nomination's TMDB match — without disturbing
-  // the order the participant has already dragged into.
+  // the order the participant has already dragged into. Also drops any row whose
+  // nomination no longer exists — e.g. an admin removed it — since it would
+  // otherwise linger in `ranked` forever (this effect is the only place that
+  // reconciles `ranked` against fresh nomination data after the initial seed).
   useEffect(() => {
     setRanked(prev => {
       const byId = new Map(nominations.map(n => [n.id, n]))
       let changed = false
-      const next = prev.map(n => {
+      const next: PollNomination[] = []
+      for (const n of prev) {
         const latest = byId.get(n.id)
-        if (latest && (latest.title !== n.title || latest.metadata !== n.metadata)) {
+        if (!latest) { changed = true; continue }
+        if (latest.title !== n.title || latest.metadata !== n.metadata) {
           changed = true
-          return latest
+          next.push(latest)
+        } else {
+          next.push(n)
         }
-        return n
-      })
+      }
       return changed ? next : prev
     })
   }, [nominations])
