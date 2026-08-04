@@ -37,6 +37,7 @@ votesRouter.post('/:id/votes', participantAuth, async (c) => {
   // Replace prior votes atomically via D1 batch
   const statements = [
     c.env.DB.prepare('DELETE FROM votes WHERE poll_id = ? AND participant_id = ?').bind(pollId, participantId),
+    c.env.DB.prepare('UPDATE participants SET draft_ranking = NULL WHERE id = ?').bind(participantId),
     ...voteItems.map(item =>
       c.env.DB.prepare(
         'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
