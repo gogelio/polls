@@ -65,4 +65,42 @@ describe('GET /events/:slug', () => {
     const body2 = await res2.json() as { phase: string }
     expect(body2.phase).toBe('closed')
   })
+
+  it('reports phase voting when the event has no linked polls', async () => {
+    await seedEvent({ id: 'glarm26' })
+
+    const res = await SELF.fetch('http://example.com/events/glarm26')
+    expect(res.status).toBe(200)
+    const body = await res.json() as { phase: string; categories: unknown[] }
+    expect(body.categories).toHaveLength(0)
+    expect(body.phase).toBe('voting')
+  })
+
+  it('applies each Participant-Tokens entry to its own poll only', async () => {
+    const { id: pollA } = await seedPoll()
+    const { id: pollB } = await seedPoll()
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(pollA).run()
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(pollB).run()
+
+    const { id: p1, token } = await seedParticipant(pollA, 'Alice')
+    const { id: nom } = await seedNomination(pollA, p1, 'Mad Max')
+    await env.DB.prepare(
+      'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+    ).bind('v1', pollA, p1, nom, null, Date.now()).run()
+
+    await seedEvent({ id: 'glarm26' })
+    await seedEventPoll('glarm26', pollA, 'Action', 0)
+    await seedEventPoll('glarm26', pollB, 'Comedy', 1)
+
+    const res = await SELF.fetch('http://example.com/events/glarm26', {
+      headers: { 'Participant-Tokens': `${pollA}:${token}` },
+    })
+    expect(res.status).toBe(200)
+    const body = await res.json() as { categories: Array<{ category: string; poll: { has_voted: boolean } }> }
+
+    const categoryA = body.categories.find(c => c.category === 'Action')
+    const categoryB = body.categories.find(c => c.category === 'Comedy')
+    expect(categoryA?.poll.has_voted).toBe(true)
+    expect(categoryB?.poll.has_voted).toBe(false)
+  })
 })
