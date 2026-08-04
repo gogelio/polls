@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
   type DragEndEvent,
@@ -120,6 +120,8 @@ export function VotingPhase({ poll, onRefetch, hideResultsLinks, adminToken }: V
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(poll.has_voted ?? false)
   const [error, setError] = useState<string | null>(null)
+  const [draftStatus, setDraftStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const draftTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (poll.has_voted) setSubmitted(true)
@@ -149,16 +151,43 @@ export function VotingPhase({ poll, onRefetch, hideResultsLinks, adminToken }: V
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   )
 
+  const scheduleDraftSave = (order: PollNomination[]) => {
+    if (poll.voting_method === 'plurality') return
+    if (draftTimeoutRef.current) clearTimeout(draftTimeoutRef.current)
+    setDraftStatus('saving')
+    draftTimeoutRef.current = setTimeout(async () => {
+      try {
+        await api.saveVoteDraft(poll.id, order.map(n => n.id))
+        setDraftStatus('saved')
+      } catch {
+        setDraftStatus('error')
+      }
+    }, 1200)
+  }
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
-    if (over && active.id !== over.id) {
-      setRanked(items => {
-        const oldIndex = items.findIndex(i => i.id === active.id)
-        const newIndex = items.findIndex(i => i.id === over.id)
-        return arrayMove(items, oldIndex, newIndex)
-      })
-    }
+    if (!over || active.id === over.id) return
+    setRanked(items => {
+      const oldIndex = items.findIndex(i => i.id === active.id)
+      const newIndex = items.findIndex(i => i.id === over.id)
+      const next = arrayMove(items, oldIndex, newIndex)
+      scheduleDraftSave(next)
+      return next
+    })
   }
+
+  useEffect(() => {
+    return () => {
+      if (draftTimeoutRef.current) clearTimeout(draftTimeoutRef.current)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (submitted && draftTimeoutRef.current) {
+      clearTimeout(draftTimeoutRef.current)
+    }
+  }, [submitted])
 
   const handleSubmit = async () => {
     setSubmitting(true)
@@ -220,6 +249,14 @@ export function VotingPhase({ poll, onRefetch, hideResultsLinks, adminToken }: V
             ? 'Pick your favourite'
             : 'Drag to rank — #1 is your top pick'}
         </p>
+
+        {poll.voting_method !== 'plurality' && draftStatus !== 'idle' && (
+          <p className="text-xs text-ink-3 mb-2">
+            {draftStatus === 'saving' && 'Saving draft…'}
+            {draftStatus === 'saved' && 'Draft saved'}
+            {draftStatus === 'error' && "Couldn't save draft — it'll retry on your next change"}
+          </p>
+        )}
 
         {poll.voting_method === 'plurality' ? (
           <div className="space-y-2">
