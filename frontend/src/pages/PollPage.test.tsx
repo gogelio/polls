@@ -25,12 +25,21 @@ vi.mock('../hooks/usePoll', () => ({
   },
 }))
 
+// api.hasToken() is backed by localStorage in production, which flips true
+// the instant joinPoll() stores a token — synchronously, well before
+// refetch() resolves. A tiny in-memory fake store gives this mock's
+// hasToken/joinPoll that exact timing property (without touching the real
+// browser localStorage API, which isn't functional in this test
+// environment) so the test can actually catch a regression of needsJoin
+// reacting to that live flip instead of only to the post-refetch state.
+const fakeTokenStore = new Set<string>()
+
 vi.mock('../api/client', () => ({
   api: {
     getPoll: vi.fn(),
     joinPoll: vi.fn(),
     getResults: vi.fn().mockResolvedValue({ poll_id: 'poll1', voting_method: 'ranked_choice', results: [], total_voters: 0 }),
-    hasToken: vi.fn().mockReturnValue(false),
+    hasToken: (pollId: string) => fakeTokenStore.has(pollId),
     saveVoteDraft: vi.fn().mockResolvedValue(undefined),
     submitVotes: vi.fn().mockResolvedValue(undefined),
     searchMoviesAsAdmin: vi.fn().mockResolvedValue([]),
@@ -38,7 +47,11 @@ vi.mock('../api/client', () => ({
   },
 }))
 
-afterEach(() => cleanup())
+afterEach(() => {
+  cleanup()
+  fakeTokenStore.clear()
+  vi.clearAllMocks()
+})
 
 function buildPoll(nominationOrder: string[], overrides: Partial<Poll> = {}): Poll {
   const byId: Record<string, { id: string; title: string }> = {
@@ -79,16 +92,27 @@ describe('PollPage join flow', () => {
     // Token-scoped fetch (post-join): server-shuffled order.
     const shuffled = buildPoll(['c', 'a', 'b'])
 
+    // The second call (the post-join refetch) gets a real, non-zero delay —
+    // matching the actual HTTP round-trip a browser would see — so React
+    // has time to actually commit the intermediate render where the
+    // localStorage-backed hasToken() has already flipped true but the poll
+    // data hasn't caught up yet. Without this delay, both fetches settle
+    // within the same microtask flush and React coalesces the two renders
+    // into one, masking the bug this test exists to catch.
     let getPollCalls = 0
     vi.mocked(api.getPoll).mockImplementation(async () => {
       getPollCalls += 1
-      return getPollCalls === 1 ? unshuffled : shuffled
+      if (getPollCalls === 1) return unshuffled
+      await new Promise(resolve => setTimeout(resolve, 20))
+      return shuffled
     })
-    vi.mocked(api.joinPoll).mockResolvedValue({
-      participant_id: 'p1',
-      name: 'Bob',
-      rejoined: false,
-    } as Awaited<ReturnType<typeof api.joinPoll>>)
+    vi.mocked(api.joinPoll).mockImplementation(async () => {
+      // Mirror the real api.joinPoll's synchronous token-store side effect
+      // so hasToken() flips true immediately on resolution, exactly like
+      // production — that's the mechanism under test.
+      fakeTokenStore.add('poll1')
+      return { participant_id: 'p1', token: 'tok-1', name: 'Bob', rejoined: false }
+    })
 
     render(
       <MemoryRouter initialEntries={['/p/poll1']}>
@@ -116,5 +140,36 @@ describe('PollPage join flow', () => {
       const titles = screen.getAllByText(/^Movie [ABC]$/).map(el => el.textContent)
       expect(titles).toEqual(['Movie C', 'Movie A', 'Movie B'])
     })
+  })
+
+  it('auto-rejoins a returning user (existing token) exactly once, without a redundant joinPoll call from an unrelated hasToken flip', async () => {
+    // Returning user: a token for this poll already exists before mount, so
+    // the very first getPoll() fetch is already token-scoped (shuffled).
+    fakeTokenStore.add('poll1')
+    const shuffled = buildPoll(['c', 'a', 'b'])
+
+    vi.mocked(api.getPoll).mockResolvedValue(shuffled)
+    vi.mocked(api.joinPoll).mockResolvedValue({ participant_id: 'p1', token: 'tok-1', name: 'Bob', rejoined: false })
+
+    render(
+      <MemoryRouter initialEntries={['/p/poll1']}>
+        <Routes>
+          <Route path="/p/:id" element={<PollPage />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    // No join form — straight to the ballot, already in the shuffled order.
+    await waitFor(() => {
+      const titles = screen.getAllByText(/^Movie [ABC]$/).map(el => el.textContent)
+      expect(titles).toEqual(['Movie C', 'Movie A', 'Movie B'])
+    })
+    expect(screen.queryByPlaceholderText('Your name')).toBeNull()
+
+    // The auto-rejoin effect must fire exactly once — not once at mount and
+    // again from its own hasToken side effect.
+    await new Promise(resolve => setTimeout(resolve, 50))
+    expect(api.joinPoll).toHaveBeenCalledTimes(1)
+    expect(api.joinPoll).toHaveBeenCalledWith('poll1', '')
   })
 })

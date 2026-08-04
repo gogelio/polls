@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useSearchParams, Navigate, useNavigate } from 'react-router-dom'
 import { useEvent } from '../hooks/useEvent'
 import { api } from '../api/client'
@@ -40,6 +40,14 @@ export function EventPage() {
   const [joining, setJoining] = useState(false)
   const [joinError, setJoinError] = useState<string | null>(null)
   const [welcomeBack, setWelcomeBack] = useState(false)
+  const [justJoined, setJustJoined] = useState(false)
+  // api.hasToken() reads localStorage live, so it flips true the instant
+  // joinEvent() stores tokens — before refetch() has actually fetched the
+  // token-scoped (shuffled) event data. needsJoin must not react to that
+  // live flip; it snapshots hasToken (per category) exactly once, the first
+  // time `event` loads, so a fresh join can only unblock the voting view via
+  // justJoined (set only after refetch resolves), never via hasToken alone.
+  const hadAllTokensAtLoadRef = useRef<boolean | null>(null)
 
   useEffect(() => {
     if (event) document.title = `${event.title} - Polls`
@@ -62,7 +70,10 @@ export function EventPage() {
   )
   if (!event) return null
 
-  const needsJoin = event.categories.some(cat => !api.hasToken(cat.poll.id))
+  if (hadAllTokensAtLoadRef.current === null) {
+    hadAllTokensAtLoadRef.current = event.categories.every(cat => api.hasToken(cat.poll.id))
+  }
+  const needsJoin = !justJoined && !hadAllTokensAtLoadRef.current
   const votedCount = event.categories.filter(cat => cat.poll.has_voted).length
 
   const handleJoin = async (e: React.FormEvent) => {
@@ -72,9 +83,10 @@ export function EventPage() {
     setJoinError(null)
     try {
       const data = await api.joinEvent(slug, participantName.trim())
+      await refetch()
       setJoinedName(data.name)
       if (data.rejoined) setWelcomeBack(true)
-      await refetch()
+      setJustJoined(true)
     } catch (e) {
       setJoinError(e instanceof Error ? e.message : 'Failed to join')
     } finally {

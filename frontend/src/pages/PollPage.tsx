@@ -36,16 +36,24 @@ export function PollPage() {
   const [joining, setJoining] = useState(false)
   const [joinError, setJoinError] = useState<string | null>(null)
   const [welcomeBack, setWelcomeBack] = useState(false)
-  const hasToken = api.hasToken(id)
+  // api.hasToken() reads localStorage live, so it flips true the instant
+  // handleJoin's api.joinPoll() stores a token — before refetch() has
+  // actually fetched the token-scoped (shuffled) poll data. Both needsJoin
+  // and the returning-user auto-rejoin effect below must not react to that
+  // live flip (the effect reacting to it would fire a second, uncoordinated
+  // joinPoll() call the moment our OWN fresh join stores a token, racing
+  // ahead of handleJoin's own refetch-then-setParticipantId ordering). Both
+  // read this snapshot, taken once at mount, instead of the live value.
+  const [hasTokenAtLoad] = useState(() => api.hasToken(id))
 
   useEffect(() => {
-    if (hasToken && id) {
+    if (hasTokenAtLoad && id) {
       api.joinPoll(id, '').then(data => {
         setParticipantId(data.participant_id)
         setJoinedName(data.name)
       }).catch(() => null)
     }
-  }, [hasToken, id])
+  }, [hasTokenAtLoad, id])
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -86,7 +94,7 @@ export function PollPage() {
   )
   if (!poll) return null
 
-  const needsJoin = !participantId && !hasToken
+  const needsJoin = !participantId && !hasTokenAtLoad
   const phase = PHASE_BADGE[poll.phase]
 
   const pollHeader = (
