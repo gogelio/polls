@@ -158,7 +158,7 @@ function main() {
     const systemParticipantId = nanoid(8)
     systemParticipantIdByCategory.set(category, systemParticipantId)
     statements.push(
-      `INSERT INTO participants (id, poll_id, name, token, joined_at) VALUES (${sqlValue(systemParticipantId)}, ${sqlValue(pollId)}, 'Preset', ${sqlValue(nanoid(24))}, ${now});`
+      `INSERT INTO participants (id, poll_id, name, token, joined_at) VALUES (${sqlValue(systemParticipantId)}, ${sqlValue(pollId)}, 'Maurice', ${sqlValue(nanoid(24))}, ${now});`
     )
 
     statements.push(
