@@ -105,3 +105,81 @@ describe('POST /polls/:id/nominations - validation', () => {
     expect(res.status).toBe(400)
   })
 })
+
+describe('GET /polls/:id/nominations/search-movies', () => {
+  beforeEach(applySchema)
+
+  it('requires an admin token', async () => {
+    const { id } = await seedPoll()
+    const res = await SELF.fetch(`http://example.com/polls/${id}/nominations/search-movies?q=dune`)
+    expect(res.status).toBe(401)
+  })
+
+  it('rejects an invalid admin token', async () => {
+    const { id } = await seedPoll()
+    const res = await SELF.fetch(`http://example.com/polls/${id}/nominations/search-movies?q=dune&admin=wrong`)
+    expect(res.status).toBe(401)
+  })
+
+  it('returns 400 when q is missing', async () => {
+    const { id, adminToken } = await seedPoll()
+    const res = await SELF.fetch(`http://example.com/polls/${id}/nominations/search-movies?admin=${adminToken}`)
+    expect(res.status).toBe(400)
+  })
+})
+
+describe('PATCH /polls/:id/nominations/:nid', () => {
+  beforeEach(applySchema)
+
+  it('updates title and metadata with a valid admin token', async () => {
+    const { id, adminToken } = await seedPoll()
+    const { id: pid } = await seedParticipant(id)
+    const { id: nid } = await seedNomination(id, pid, 'Wrong Movie')
+
+    const res = await SELF.fetch(`http://example.com/polls/${id}/nominations/${nid}?admin=${adminToken}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Correct Movie', metadata: { external_id: '123', poster_url: 'https://example.com/p.jpg' } }),
+    })
+    expect(res.status).toBe(200)
+
+    const row = await env.DB.prepare('SELECT title, metadata FROM nominations WHERE id = ?').bind(nid).first<{ title: string; metadata: string }>()
+    expect(row?.title).toBe('Correct Movie')
+    expect(JSON.parse(row!.metadata)).toEqual({ external_id: '123', poster_url: 'https://example.com/p.jpg' })
+  })
+
+  it('rejects an empty title', async () => {
+    const { id, adminToken } = await seedPoll()
+    const { id: pid } = await seedParticipant(id)
+    const { id: nid } = await seedNomination(id, pid)
+
+    const res = await SELF.fetch(`http://example.com/polls/${id}/nominations/${nid}?admin=${adminToken}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: '' }),
+    })
+    expect(res.status).toBe(400)
+  })
+
+  it('returns 404 for a nomination that does not exist', async () => {
+    const { id, adminToken } = await seedPoll()
+    const res = await SELF.fetch(`http://example.com/polls/${id}/nominations/doesnotexist?admin=${adminToken}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Anything' }),
+    })
+    expect(res.status).toBe(404)
+  })
+
+  it('rejects an invalid admin token', async () => {
+    const { id } = await seedPoll()
+    const { id: pid } = await seedParticipant(id)
+    const { id: nid } = await seedNomination(id, pid)
+    const res = await SELF.fetch(`http://example.com/polls/${id}/nominations/${nid}?admin=wrong`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Anything' }),
+    })
+    expect(res.status).toBe(401)
+  })
+})

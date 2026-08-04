@@ -187,7 +187,7 @@ export function PollPage() {
       )}
 
       {poll.phase === 'voting' && participantId && (
-        <VotingPhase poll={poll} onRefetch={refetch} />
+        <VotingPhase poll={poll} onRefetch={refetch} adminToken={adminToken} />
       )}
 
       {poll.phase === 'voting' && !participantId && (

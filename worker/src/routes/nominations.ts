@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { nanoid } from 'nanoid'
 import type { Env, Poll } from '../types'
 import { participantAuth, adminAuth } from '../middleware/auth'
+import { searchTmdbMovies } from '../lib/tmdb'
 
 type Variables = { participantId: string }
 export const nominationsRouter = new Hono<{ Bindings: Env; Variables: Variables }>()
@@ -45,6 +46,39 @@ nominationsRouter.delete('/:id/nominations/:nid', adminAuth, async (c) => {
   const result = await c.env.DB.prepare(
     'DELETE FROM nominations WHERE id = ? AND poll_id = ?'
   ).bind(nid, pollId).run()
+  if (result.meta.changes === 0) return c.json({ error: 'Nomination not found' }, 404)
+  return c.json({ success: true })
+})
+
+nominationsRouter.get('/:id/nominations/search-movies', adminAuth, async (c) => {
+  const q = c.req.query('q')?.trim()
+  if (!q) return c.json({ error: 'q is required' }, 400)
+
+  try {
+    const results = await searchTmdbMovies(c.env.TMDB_API_KEY, q)
+    return c.json(results)
+  } catch {
+    return c.json({ error: 'Movie search failed' }, 502)
+  }
+})
+
+nominationsRouter.patch('/:id/nominations/:nid', adminAuth, async (c) => {
+  const pollId = c.req.param('id')
+  const nid = c.req.param('nid')
+  const { title, metadata } = await c.req.json<{ title?: string; metadata?: unknown }>()
+
+  if (title !== undefined && !title.trim()) return c.json({ error: 'title cannot be empty' }, 400)
+
+  const fields: string[] = []
+  const values: (string | null)[] = []
+  if (title !== undefined) { fields.push('title = ?'); values.push(title.trim()) }
+  if (metadata !== undefined) { fields.push('metadata = ?'); values.push(metadata ? JSON.stringify(metadata) : null) }
+  if (fields.length === 0) return c.json({ error: 'No fields to update' }, 400)
+
+  const result = await c.env.DB.prepare(
+    `UPDATE nominations SET ${fields.join(', ')} WHERE id = ? AND poll_id = ?`
+  ).bind(...values, nid, pollId).run()
+
   if (result.meta.changes === 0) return c.json({ error: 'Nomination not found' }, 404)
   return c.json({ success: true })
 })

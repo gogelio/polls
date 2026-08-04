@@ -8,7 +8,7 @@ import { EventAdminControls } from '../components/EventAdminControls'
 import { Bracket } from '../components/Bracket'
 import type { Poll } from '../types'
 
-function CategorySection({ poll, onRefetch }: { poll: Poll; onRefetch: () => void }) {
+function CategorySection({ poll, onRefetch, adminToken }: { poll: Poll; onRefetch: () => void; adminToken: string | null }) {
   return (
     <details className="card p-0 overflow-hidden" open>
       <summary className="cursor-pointer select-none px-5 py-4 font-bold text-ink flex items-center justify-between">
@@ -19,7 +19,7 @@ function CategorySection({ poll, onRefetch }: { poll: Poll; onRefetch: () => voi
         {poll.phase === 'closed' ? (
           <ResultsView poll={poll} hideLinks />
         ) : (
-          <VotingPhase poll={poll} onRefetch={onRefetch} hideResultsLinks />
+          <VotingPhase poll={poll} onRefetch={onRefetch} hideResultsLinks adminToken={adminToken} />
         )}
       </div>
     </details>
@@ -136,7 +136,7 @@ export function EventPage() {
 
       <div className="space-y-3">
         {event.categories.map(cat => (
-          <CategorySection key={cat.poll.id} poll={cat.poll} onRefetch={refetch} />
+          <CategorySection key={cat.poll.id} poll={cat.poll} onRefetch={refetch} adminToken={adminToken} />
         ))}
       </div>
 

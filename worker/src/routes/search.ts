@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import type { Env } from '../types'
 import { participantAuth } from '../middleware/auth'
+import { searchTmdbMovies } from '../lib/tmdb'
 
 type Variables = { participantId: string }
 export const searchRouter = new Hono<{ Bindings: Env; Variables: Variables }>()
@@ -36,29 +37,10 @@ searchRouter.get('/movies', participantAuth, async (c) => {
   const q = c.req.query('q')?.trim()
   if (!q) return c.json({ error: 'q is required' }, 400)
 
-  const apiKey = c.env.TMDB_API_KEY
-  const url = `https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(q)}&api_key=${apiKey}&page=1`
-  const res = await fetch(url)
-  if (!res.ok) return c.json({ error: 'Movie search failed' }, 502)
-
-  const data = await res.json() as {
-    results?: Array<{
-      id: number
-      title: string
-      release_date?: string
-      poster_path?: string
-    }>
+  try {
+    const results = await searchTmdbMovies(c.env.TMDB_API_KEY, q)
+    return c.json(results)
+  } catch {
+    return c.json({ error: 'Movie search failed' }, 502)
   }
-
-  const results = (data.results ?? []).slice(0, 5).map(movie => ({
-    external_id: String(movie.id),
-    title: movie.title,
-    director: null,
-    year: movie.release_date?.slice(0, 4) ?? null,
-    poster_url: movie.poster_path
-      ? `https://image.tmdb.org/t/p/w185${movie.poster_path}`
-      : null,
-  }))
-
-  return c.json(results)
 })

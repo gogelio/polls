@@ -11,10 +11,18 @@ import { CSS } from '@dnd-kit/utilities'
 import type { Category, Poll, PollNomination, NominationMetadata } from '../types'
 import { api } from '../api/client'
 import { ResultsView } from './ResultsView'
+import { NominationMatchEditor } from './NominationMatchEditor'
 
-interface SortableItemProps { nomination: PollNomination; rank: number; category: Category }
+interface SortableItemProps {
+  nomination: PollNomination
+  rank: number
+  category: Category
+  pollId: string
+  adminToken?: string | null
+  onNominationUpdated: () => void
+}
 
-function SortableItem({ nomination, rank, category }: SortableItemProps) {
+function SortableItem({ nomination, rank, category, pollId, adminToken, onNominationUpdated }: SortableItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: nomination.id })
   const meta = nomination.metadata
@@ -59,16 +67,13 @@ function SortableItem({ nomination, rank, category }: SortableItemProps) {
         )}
         {meta?.author && <div className="text-xs text-ink-3">{meta.author}</div>}
         {meta?.director && <div className="text-xs text-ink-3">{meta.director}</div>}
-        {meta?.trailer_url && (
-          <a
-            href={meta.trailer_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={e => e.stopPropagation()}
-            className="text-xs text-accent hover:underline"
-          >
-            ▶ Trailer
-          </a>
+        {category === 'movie' && adminToken && (
+          <NominationMatchEditor
+            pollId={pollId}
+            nominationId={nomination.id}
+            adminToken={adminToken}
+            onUpdated={onNominationUpdated}
+          />
         )}
       </div>
       <span className="text-ink-3 text-lg select-none flex-shrink-0">⠿</span>
@@ -80,9 +85,10 @@ interface VotingPhaseProps {
   poll: Poll
   onRefetch: () => void
   hideResultsLinks?: boolean
+  adminToken?: string | null
 }
 
-export function VotingPhase({ poll, onRefetch, hideResultsLinks }: VotingPhaseProps) {
+export function VotingPhase({ poll, onRefetch, hideResultsLinks, adminToken }: VotingPhaseProps) {
   const nominations = poll.nominations ?? []
   const [ranked, setRanked] = useState<PollNomination[]>(nominations)
   const [selected, setSelected] = useState<string | null>(null)
@@ -196,7 +202,15 @@ export function VotingPhase({ poll, onRefetch, hideResultsLinks }: VotingPhasePr
             <SortableContext items={ranked.map(n => n.id)} strategy={verticalListSortingStrategy}>
               <div className="space-y-2">
                 {ranked.map((nom, i) => (
-                  <SortableItem key={nom.id} nomination={nom} rank={i + 1} category={poll.category} />
+                  <SortableItem
+                    key={nom.id}
+                    nomination={nom}
+                    rank={i + 1}
+                    category={poll.category}
+                    pollId={poll.id}
+                    adminToken={adminToken}
+                    onNominationUpdated={onRefetch}
+                  />
                 ))}
               </div>
             </SortableContext>

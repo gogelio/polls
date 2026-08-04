@@ -147,6 +147,24 @@ export const api = {
     return res.json()
   },
 
+  searchMoviesAsAdmin: async (pollId: string, adminToken: string, q: string): Promise<SearchResult[]> => {
+    const res = await throwIfError(await fetch(
+      `${BASE}/polls/${pollId}/nominations/search-movies?q=${encodeURIComponent(q)}&admin=${adminToken}`
+    ))
+    return res.json()
+  },
+
+  updateNomination: async (pollId: string, nominationId: string, adminToken: string, changes: {
+    title?: string
+    metadata?: unknown
+  }): Promise<void> => {
+    await throwIfError(await fetch(`${BASE}/polls/${pollId}/nominations/${nominationId}?admin=${adminToken}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(changes),
+    }))
+  },
+
   getEvent: async (slug: string, pollIds: string[] = []): Promise<EventPayload> => {
     const knownIds = new Set(pollIds)
     for (let i = 0; i < localStorage.length; i++) {

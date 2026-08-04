@@ -9,7 +9,6 @@ export interface NominationMetadata {
   author?: string
   director?: string
   year?: number
-  trailer_url?: string
 }
 
 export interface PollNomination {

@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import type { Poll, PollResults, NominationMetadata } from '../types'
 import { api } from '../api/client'
+import { NominationMatchEditor } from './NominationMatchEditor'
 
 interface ResultsViewProps { poll: Poll; hideLinks?: boolean }
 
@@ -14,22 +15,25 @@ export function ResultsView({ poll, hideLinks }: ResultsViewProps) {
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  useEffect(() => {
-    const fetch = () =>
+  const fetchResults = useCallback(
+    () =>
       api.getResults(poll.id)
         .then(setResults)
-        .catch(e => setError(e instanceof Error ? e.message : 'Failed to load results'))
+        .catch(e => setError(e instanceof Error ? e.message : 'Failed to load results')),
+    [poll.id]
+  )
 
-    fetch()
+  useEffect(() => {
+    fetchResults()
 
     if (poll.phase !== 'closed') {
-      intervalRef.current = setInterval(fetch, 3000)
+      intervalRef.current = setInterval(fetchResults, 3000)
     }
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
-  }, [poll.id, poll.phase])
+  }, [poll.phase, fetchResults])
 
   if (error) return <div className="card p-5 text-center"><p className="text-ink-3 text-sm">{error}</p></div>
   if (!results) return <div className="card p-5 text-center"><p className="text-ink-3 text-sm animate-pulse">Loading results…</p></div>
@@ -83,6 +87,16 @@ export function ResultsView({ poll, hideLinks }: ResultsViewProps) {
                     {meta?.author && <p className="text-ink-2 text-sm mt-0.5">{meta.author}</p>}
                     {meta?.director && <p className="text-ink-2 text-sm mt-0.5">{meta.director}</p>}
                     {leader.nominated_by && <p className="text-ink-3 text-xs mt-1">nominated by {leader.nominated_by}</p>}
+                    {poll.category === 'movie' && adminToken && (
+                      <div className="mt-1">
+                        <NominationMatchEditor
+                          pollId={poll.id}
+                          nominationId={leader.nomination_id}
+                          adminToken={adminToken}
+                          onUpdated={fetchResults}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               )
@@ -118,6 +132,16 @@ export function ResultsView({ poll, hideLinks }: ResultsViewProps) {
                     <span className="text-sm font-semibold text-ink truncate block">{r.title}</span>
                   )}
                   {r.nominated_by && <span className="text-xs text-ink-3">nominated by {r.nominated_by}</span>}
+                  {poll.category === 'movie' && adminToken && (
+                    <div className="mt-0.5">
+                      <NominationMatchEditor
+                        pollId={poll.id}
+                        nominationId={r.nomination_id}
+                        adminToken={adminToken}
+                        onUpdated={fetchResults}
+                      />
+                    </div>
+                  )}
                 </div>
                 <span className="text-xs text-ink-3 tabular-nums flex-shrink-0">{r.percentage}%</span>
               </div>
