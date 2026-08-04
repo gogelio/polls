@@ -92,6 +92,14 @@ export const api = {
     }))
   },
 
+  saveVoteDraft: async (pollId: string, ranking: string[]): Promise<void> => {
+    await throwIfError(await fetch(`${BASE}/polls/${pollId}/vote-draft`, {
+      method: 'PATCH',
+      headers: participantHeaders(pollId),
+      body: JSON.stringify({ ranking }),
+    }))
+  },
+
   getResults: async (pollId: string): Promise<PollResults> => {
     const res = await throwIfError(await fetch(`${BASE}/polls/${pollId}/results`))
     return res.json()

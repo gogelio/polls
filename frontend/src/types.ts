@@ -33,6 +33,7 @@ export interface Poll {
   nomination_closes_at: number | null
   nominations: PollNomination[] | null
   has_voted: boolean
+  draft_ranking: string[] | null
   participant_count: number
   created_at: number
 }
