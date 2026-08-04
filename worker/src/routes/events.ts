@@ -4,7 +4,7 @@ import { buildPollResponse } from '../lib/pollDetail'
 import { rankedChoice, type RankedResult, type NominationRow, type VoteRow } from '../lib/voting'
 import { resolveSlot } from '../lib/bracket'
 import { joinOrReclaim } from '../lib/joinOrReclaim'
-import { eventAdminAuth } from '../middleware/auth'
+import { eventAdminAuth, isValidEventAdminToken } from '../middleware/auth'
 
 export const eventsRouter = new Hono<{ Bindings: Env }>()
 
@@ -22,8 +22,18 @@ function parseTokenHeader(header: string | undefined): Map<string, string> {
 
 function buildSlotPayload(
   row: { day: string; slot_order: number; category: string; placement: number },
-  resultsByCategory: Map<string, RankedResult[]>
+  resultsByCategory: Map<string, RankedResult[]>,
+  visibleCategories: Set<string>
 ) {
+  if (!visibleCategories.has(row.category)) {
+    return {
+      slot_order: row.slot_order,
+      category: row.category,
+      placement: row.placement,
+      status: 'hidden' as const,
+      movies: [],
+    }
+  }
   const results = resultsByCategory.get(row.category) ?? []
   const resolved = resolveSlot(results, row.placement === 2 ? 2 : 1)
   return {
@@ -47,14 +57,22 @@ eventsRouter.get('/:slug', async (c) => {
   ).bind(slug).all<{ poll_id: string; category: string; sort_order: number }>()
 
   const tokens = parseTokenHeader(c.req.header('Participant-Tokens'))
+  const isEventAdmin = await isValidEventAdminToken(c.env, slug, c.req.query('admin'))
 
   const categories: Array<{ category: string; sort_order: number; poll: NonNullable<Awaited<ReturnType<typeof buildPollResponse>>> }> = []
   const resultsByCategory = new Map<string, RankedResult[]>()
+  // Mirrors GET /polls/:id/results: hidden while voting is in progress and
+  // votes_visible is off, unless the requester is the event admin — a
+  // closed poll's results are always public, same as everywhere else.
+  const visibleCategories = new Set<string>()
 
   for (const link of links) {
     const pollResponse = await buildPollResponse(c.env, link.poll_id, tokens.get(link.poll_id) ?? null)
     if (!pollResponse) continue
     categories.push({ category: link.category, sort_order: link.sort_order, poll: pollResponse })
+    if (pollResponse.votes_visible || pollResponse.phase === 'closed' || isEventAdmin) {
+      visibleCategories.add(link.category)
+    }
 
     const { results: nominations } = await c.env.DB.prepare(
       'SELECT id, title, metadata FROM nominations WHERE poll_id = ?'
@@ -73,7 +91,7 @@ eventsRouter.get('/:slug', async (c) => {
 
   const scheduleByDay = new Map<string, ReturnType<typeof buildSlotPayload>[]>()
   for (const row of slotRows) {
-    const slot = buildSlotPayload(row, resultsByCategory)
+    const slot = buildSlotPayload(row, resultsByCategory, visibleCategories)
     if (!scheduleByDay.has(row.day)) scheduleByDay.set(row.day, [])
     scheduleByDay.get(row.day)!.push(slot)
   }

@@ -10,6 +10,7 @@ function SlotCard({ slot }: { slot: EventSlot }) {
       </p>
       {slot.status === 'awaiting_votes' && <p className="text-ink-3 text-sm">Awaiting votes</p>}
       {slot.status === 'unresolved' && <p className="text-ink-3 text-sm">Tied — not yet decided</p>}
+      {slot.status === 'hidden' && <p className="text-ink-3 text-sm">Hidden until reveal</p>}
       {slot.status === 'resolved' && (
         <p className="text-sm font-semibold text-ink">{slot.movies.map(m => m.title).join(' / ')}</p>
       )}

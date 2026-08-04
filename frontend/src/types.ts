@@ -90,7 +90,7 @@ export interface EventSlot {
   slot_order: number
   category: string
   placement: 1 | 2
-  status: 'awaiting_votes' | 'resolved' | 'unresolved'
+  status: 'awaiting_votes' | 'resolved' | 'unresolved' | 'hidden'
   movies: EventSlotMovie[]
 }
 

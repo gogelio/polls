@@ -47,6 +47,111 @@ describe('GET /events/:slug', () => {
     expect(schedule[0]!.slots[0]!.movies[0]!.title).toBe('Mad Max')
   })
 
+  it('hides resolved schedule slot movies when votes_visible is off and no admin token is provided', async () => {
+    const { id: pollA } = await seedPoll({ title: 'Action', category: 'movie', voting_method: 'ranked_choice' })
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(pollA).run()
+    const { id: p1 } = await seedParticipant(pollA, 'Alice')
+    const { id: nomWinner } = await seedNomination(pollA, p1, 'Mad Max')
+    await env.DB.prepare(
+      'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+    ).bind('v1', pollA, p1, nomWinner, 1, Date.now()).run()
+
+    await seedEvent({ id: 'glarm26' })
+    await seedEventPoll('glarm26', pollA, 'Action', 0)
+    await seedEventSlot('glarm26', 'Thursday', 1, 'Action', 1)
+
+    const res = await SELF.fetch('http://example.com/events/glarm26')
+    const body = await res.json() as { schedule: Array<{ slots: Array<{ status: string; movies: unknown[] }> }> }
+    expect(body.schedule[0]!.slots[0]!.status).toBe('hidden')
+    expect(body.schedule[0]!.slots[0]!.movies).toEqual([])
+  })
+
+  it('reveals resolved schedule slot movies to a valid event admin token even when votes_visible is off', async () => {
+    const { id: pollA } = await seedPoll({ title: 'Action', category: 'movie', voting_method: 'ranked_choice' })
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(pollA).run()
+    const { id: p1 } = await seedParticipant(pollA, 'Alice')
+    const { id: nomWinner } = await seedNomination(pollA, p1, 'Mad Max')
+    await env.DB.prepare(
+      'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+    ).bind('v1', pollA, p1, nomWinner, 1, Date.now()).run()
+
+    const { adminToken: eventAdminToken } = await seedEvent({ id: 'glarm26' })
+    await seedEventPoll('glarm26', pollA, 'Action', 0)
+    await seedEventSlot('glarm26', 'Thursday', 1, 'Action', 1)
+
+    const res = await SELF.fetch(`http://example.com/events/glarm26?admin=${eventAdminToken}`)
+    const body = await res.json() as { schedule: Array<{ slots: Array<{ status: string; movies: Array<{ title: string }> }> }> }
+    expect(body.schedule[0]!.slots[0]!.status).toBe('resolved')
+    expect(body.schedule[0]!.slots[0]!.movies[0]!.title).toBe('Mad Max')
+  })
+
+  it('still hides resolved schedule slot movies with an invalid admin token', async () => {
+    const { id: pollA } = await seedPoll({ title: 'Action', category: 'movie', voting_method: 'ranked_choice' })
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(pollA).run()
+    const { id: p1 } = await seedParticipant(pollA, 'Alice')
+    const { id: nomWinner } = await seedNomination(pollA, p1, 'Mad Max')
+    await env.DB.prepare(
+      'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+    ).bind('v1', pollA, p1, nomWinner, 1, Date.now()).run()
+
+    await seedEvent({ id: 'glarm26' })
+    await seedEventPoll('glarm26', pollA, 'Action', 0)
+    await seedEventSlot('glarm26', 'Thursday', 1, 'Action', 1)
+
+    const res = await SELF.fetch('http://example.com/events/glarm26?admin=not-a-real-token')
+    const body = await res.json() as { schedule: Array<{ slots: Array<{ status: string }> }> }
+    expect(body.schedule[0]!.slots[0]!.status).toBe('hidden')
+  })
+
+  it('keeps schedule slot movies visible for a closed poll even without votes_visible or an admin token', async () => {
+    const { id: pollA } = await seedPoll({ title: 'Action', category: 'movie', voting_method: 'ranked_choice' })
+    await env.DB.prepare("UPDATE polls SET phase = 'closed' WHERE id = ?").bind(pollA).run()
+    const { id: p1 } = await seedParticipant(pollA, 'Alice')
+    const { id: nomWinner } = await seedNomination(pollA, p1, 'Mad Max')
+    await env.DB.prepare(
+      'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+    ).bind('v1', pollA, p1, nomWinner, 1, Date.now()).run()
+
+    await seedEvent({ id: 'glarm26' })
+    await seedEventPoll('glarm26', pollA, 'Action', 0)
+    await seedEventSlot('glarm26', 'Thursday', 1, 'Action', 1)
+
+    const res = await SELF.fetch('http://example.com/events/glarm26')
+    const body = await res.json() as { schedule: Array<{ slots: Array<{ status: string; movies: Array<{ title: string }> }> }> }
+    expect(body.schedule[0]!.slots[0]!.status).toBe('resolved')
+    expect(body.schedule[0]!.slots[0]!.movies[0]!.title).toBe('Mad Max')
+  })
+
+  it('hides one category while showing another when they have different votes_visible settings', async () => {
+    const { id: pollHidden } = await seedPoll({ title: 'Action', category: 'movie', voting_method: 'ranked_choice' })
+    const { id: pollShown } = await seedPoll({ title: 'Comedy', category: 'movie', voting_method: 'ranked_choice' })
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(pollHidden).run()
+    await env.DB.prepare("UPDATE polls SET phase = 'voting', votes_visible = 1 WHERE id = ?").bind(pollShown).run()
+    const { id: p1 } = await seedParticipant(pollHidden, 'Alice')
+    const { id: nomHidden } = await seedNomination(pollHidden, p1, 'Mad Max')
+    await env.DB.prepare(
+      'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+    ).bind('v1', pollHidden, p1, nomHidden, 1, Date.now()).run()
+    const { id: p2 } = await seedParticipant(pollShown, 'Bob')
+    const { id: nomShown } = await seedNomination(pollShown, p2, 'Superbad')
+    await env.DB.prepare(
+      'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+    ).bind('v2', pollShown, p2, nomShown, 1, Date.now()).run()
+
+    await seedEvent({ id: 'glarm26' })
+    await seedEventPoll('glarm26', pollHidden, 'Action', 0)
+    await seedEventPoll('glarm26', pollShown, 'Comedy', 1)
+    await seedEventSlot('glarm26', 'Thursday', 1, 'Action', 1)
+    await seedEventSlot('glarm26', 'Thursday', 2, 'Comedy', 1)
+
+    const res = await SELF.fetch('http://example.com/events/glarm26')
+    const body = await res.json() as { schedule: Array<{ slots: Array<{ category: string; status: string; movies: Array<{ title: string }> }> }> }
+    const slots = body.schedule[0]!.slots
+    expect(slots.find(s => s.category === 'Action')!.status).toBe('hidden')
+    expect(slots.find(s => s.category === 'Comedy')!.status).toBe('resolved')
+    expect(slots.find(s => s.category === 'Comedy')!.movies[0]!.title).toBe('Superbad')
+  })
+
   it('reports phase closed only once every linked poll is closed', async () => {
     const { id: pollA } = await seedPoll()
     const { id: pollB } = await seedPoll()

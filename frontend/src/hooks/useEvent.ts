@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import type { EventPayload } from '../types'
 import { api } from '../api/client'
 
-export function useEvent(slug: string) {
+export function useEvent(slug: string, adminToken?: string | null) {
   const [event, setEvent] = useState<EventPayload | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -11,7 +11,7 @@ export function useEvent(slug: string) {
 
   const fetchEvent = useCallback(async () => {
     try {
-      const data = await api.getEvent(slug, pollIdsRef.current)
+      const data = await api.getEvent(slug, pollIdsRef.current, adminToken)
       pollIdsRef.current = data.categories.map(cat => cat.poll.id)
       setEvent(data)
       setError(null)
@@ -24,7 +24,7 @@ export function useEvent(slug: string) {
     } finally {
       setLoading(false)
     }
-  }, [slug])
+  }, [slug, adminToken])
 
   useEffect(() => {
     fetchEvent()

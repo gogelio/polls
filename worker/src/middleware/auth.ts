@@ -84,6 +84,21 @@ export async function adminAuth(
   return c.json({ error: 'Invalid admin token' }, 401)
 }
 
+// Checks a provided admin token against an event's own admin_token. Shared
+// by eventAdminAuth (hard-requires a match) and any route that only wants
+// to optionally unlock extra behavior for an event admin without gating the
+// whole route behind one.
+export async function isValidEventAdminToken(env: Env, eventId: string, adminToken: string | undefined): Promise<boolean> {
+  if (!adminToken) return false
+
+  const event = await env.DB.prepare(
+    'SELECT admin_token FROM events WHERE id = ?'
+  ).bind(eventId).first<{ admin_token: string }>()
+  if (!event) return false
+
+  return tokensMatch(adminToken, event.admin_token)
+}
+
 export async function eventAdminAuth(
   c: Context<{ Bindings: Env }>,
   next: Next
@@ -93,12 +108,11 @@ export async function eventAdminAuth(
   if (!adminToken) return c.json({ error: 'Missing admin query param' }, 401)
 
   const event = await c.env.DB.prepare(
-    'SELECT admin_token FROM events WHERE id = ?'
-  ).bind(slug).first<{ admin_token: string }>()
-
+    'SELECT id FROM events WHERE id = ?'
+  ).bind(slug).first<{ id: string }>()
   if (!event) return c.json({ error: 'Event not found' }, 404)
 
-  if (!tokensMatch(adminToken, event.admin_token)) {
+  if (!(await isValidEventAdminToken(c.env, slug, adminToken))) {
     return c.json({ error: 'Invalid admin token' }, 401)
   }
 

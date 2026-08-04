@@ -33,7 +33,7 @@ export function EventPage() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const adminToken = searchParams.get('admin')
-  const { event, error, loading, refetch } = useEvent(slug)
+  const { event, error, loading, refetch } = useEvent(slug, adminToken)
 
   const [joinedName, setJoinedName] = useState<string | null>(null)
   const [participantName, setParticipantName] = useState('')

@@ -1,6 +1,6 @@
 import type { RankedResult } from './voting'
 
-export type SlotStatus = 'awaiting_votes' | 'resolved' | 'unresolved'
+export type SlotStatus = 'awaiting_votes' | 'resolved' | 'unresolved' | 'hidden'
 
 export interface SlotMovie {
   nomination_id: string

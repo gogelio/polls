@@ -176,7 +176,7 @@ export const api = {
     }))
   },
 
-  getEvent: async (slug: string, pollIds: string[] = []): Promise<EventPayload> => {
+  getEvent: async (slug: string, pollIds: string[] = [], adminToken?: string | null): Promise<EventPayload> => {
     const knownIds = new Set(pollIds)
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i)
@@ -186,7 +186,8 @@ export const api = {
       .map(id => { const t = getToken(id); return t ? `${id}:${t}` : null })
       .filter((v): v is string => v !== null)
     const headers: HeadersInit = tokenPairs.length ? { 'Participant-Tokens': tokenPairs.join(',') } : {}
-    const res = await throwIfError(await fetch(`${BASE}/events/${slug}`, { headers }))
+    const url = adminToken ? `${BASE}/events/${slug}?admin=${adminToken}` : `${BASE}/events/${slug}`
+    const res = await throwIfError(await fetch(url, { headers }))
     return res.json()
   },
 
