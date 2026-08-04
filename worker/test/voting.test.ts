@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { plurality, rankedChoice, rankedPairs } from '../src/lib/voting'
-import type { VoteRow, NominationRow } from '../src/lib/voting'
+import type { VoteRow, NominationRow, RankedResult } from '../src/lib/voting'
+import { resolveSlot } from '../src/lib/bracket'
 
 const noms: NominationRow[] = [
   { id: 'a', title: 'A', metadata: null },
@@ -121,5 +122,45 @@ describe('rankedPairs', () => {
     ]
     const results = rankedPairs(votes, noms)
     expect(results[0]!.nomination_id).toBe('b')
+  })
+})
+
+describe('resolveSlot', () => {
+  it('reports awaiting_votes when nobody has voted yet', () => {
+    const results: RankedResult[] = [
+      { nomination_id: 'a', title: 'A', metadata: null, score: 0, percentage: 0 },
+      { nomination_id: 'b', title: 'B', metadata: null, score: 0, percentage: 0 },
+    ]
+    expect(resolveSlot(results, 1)).toEqual({ status: 'awaiting_votes', movies: [] })
+  })
+
+  it('resolves 1st and 2nd place from distinct score tiers', () => {
+    const results: RankedResult[] = [
+      { nomination_id: 'a', title: 'A', metadata: null, score: 5, percentage: 100 },
+      { nomination_id: 'b', title: 'B', metadata: null, score: 3, percentage: 60 },
+      { nomination_id: 'c', title: 'C', metadata: null, score: 1, percentage: 20 },
+    ]
+    expect(resolveSlot(results, 1)).toEqual({ status: 'resolved', movies: [{ nomination_id: 'a', title: 'A' }] })
+    expect(resolveSlot(results, 2)).toEqual({ status: 'resolved', movies: [{ nomination_id: 'b', title: 'B' }] })
+  })
+
+  it('groups every tied movie into the same placement', () => {
+    const results: RankedResult[] = [
+      { nomination_id: 'a', title: 'A', metadata: null, score: 5, percentage: 100 },
+      { nomination_id: 'b', title: 'B', metadata: null, score: 5, percentage: 100 },
+      { nomination_id: 'c', title: 'C', metadata: null, score: 1, percentage: 20 },
+    ]
+    const first = resolveSlot(results, 1)
+    expect(first.status).toBe('resolved')
+    expect(first.movies.map(m => m.nomination_id).sort()).toEqual(['a', 'b'])
+    expect(resolveSlot(results, 2)).toEqual({ status: 'resolved', movies: [{ nomination_id: 'c', title: 'C' }] })
+  })
+
+  it('reports unresolved for 2nd place when everything is tied for 1st', () => {
+    const results: RankedResult[] = [
+      { nomination_id: 'a', title: 'A', metadata: null, score: 2, percentage: 100 },
+      { nomination_id: 'b', title: 'B', metadata: null, score: 2, percentage: 100 },
+    ]
+    expect(resolveSlot(results, 2)).toEqual({ status: 'unresolved', movies: [] })
   })
 })
