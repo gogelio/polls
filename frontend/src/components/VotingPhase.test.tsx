@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { VotingPhase } from './VotingPhase'
 import type { Poll } from '../types'
 import { api } from '../api/client'
@@ -9,6 +10,8 @@ vi.mock('../api/client', () => ({
   api: {
     saveVoteDraft: vi.fn().mockResolvedValue(undefined),
     submitVotes: vi.fn().mockResolvedValue(undefined),
+    searchMoviesAsAdmin: vi.fn().mockResolvedValue([]),
+    updateNomination: vi.fn().mockResolvedValue(undefined),
   },
 }))
 
@@ -72,8 +75,10 @@ function buildPoll(overrides: Partial<Poll> = {}): Poll {
 // drop with Space. This exercises the same handleDragEnd path a mouse drag
 // would, without needing pointer-event support in jsdom.
 async function dragFirstItemDown() {
-  const rows = screen.getAllByText(/^Movie [ABC]$/).map(el => el.closest('div[tabindex]')) as HTMLElement[]
-  const first = rows[0]
+  const handles = screen.getAllByText(/^Movie [ABC]$/).map(el =>
+    el.closest('.bg-raised')?.querySelector('button[aria-label="Drag to reorder"]')
+  ) as HTMLElement[]
+  const first = handles[0]
   if (!first) throw new Error('expected a sortable row to drag')
   first.focus()
   fireEvent.keyDown(first, { code: 'Space' })
@@ -132,6 +137,25 @@ describe('VotingPhase draft ordering', () => {
     rerender(<VotingPhase poll={updatedPoll} onRefetch={vi.fn()} />)
 
     expect(screen.getAllByText(/^Movie [ABC]$/).map(el => el.textContent)).toEqual(['Movie B', 'Movie A', 'Movie C'])
+  })
+})
+
+describe('NominationMatchEditor inside a sortable row', () => {
+  it('lets an admin type a space in the search box without it being swallowed by the row drag handler', async () => {
+    // Regression test: {...listeners} used to be spread across the entire
+    // sortable row (including the nested search input), so dnd-kit's
+    // KeyboardSensor treated a Space keydown bubbling up from the input as
+    // "pick up this row for dragging" and called preventDefault on it —
+    // which stops the space character from ever reaching the input.
+    const poll = buildPoll({ category: 'movie' })
+    render(<VotingPhase poll={poll} onRefetch={vi.fn()} adminToken="admin-token" />)
+
+    fireEvent.click(screen.getAllByRole('button', { name: '✎ Fix match' })[0]!)
+    const input = screen.getByPlaceholderText(/search for the correct movie/i) as HTMLInputElement
+    const user = userEvent.setup()
+    await user.type(input, 'Blade II')
+
+    expect(input.value).toBe('Blade II')
   })
 })
 

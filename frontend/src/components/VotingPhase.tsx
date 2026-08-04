@@ -23,7 +23,7 @@ interface SortableItemProps {
 }
 
 function SortableItem({ nomination, rank, category, pollId, adminToken, onNominationUpdated }: SortableItemProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
     useSortable({ id: nomination.id })
   const meta = nomination.metadata
     ? (typeof nomination.metadata === 'string'
@@ -44,9 +44,7 @@ function SortableItem({ nomination, rank, category, pollId, adminToken, onNomina
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
-      className="flex items-center gap-3 bg-raised border border-line rounded-xl p-3 cursor-grab active:cursor-grabbing select-none touch-none"
-      {...attributes}
-      {...listeners}
+      className="flex items-center gap-3 bg-raised border border-line rounded-xl p-3 select-none"
     >
       <span className="text-accent font-extrabold text-base w-6 text-center flex-shrink-0 tabular-nums">
         {rank}
@@ -79,7 +77,16 @@ function SortableItem({ nomination, rank, category, pollId, adminToken, onNomina
           />
         )}
       </div>
-      <span className="text-ink-3 text-lg select-none flex-shrink-0">⠿</span>
+      <button
+        type="button"
+        ref={setActivatorNodeRef}
+        aria-label="Drag to reorder"
+        className="text-ink-3 text-lg select-none flex-shrink-0 cursor-grab active:cursor-grabbing touch-none"
+        {...attributes}
+        {...listeners}
+      >
+        ⠿
+      </button>
     </div>
   )
 }
