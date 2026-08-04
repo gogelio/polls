@@ -79,9 +79,10 @@ function SortableItem({ nomination, rank, category }: SortableItemProps) {
 interface VotingPhaseProps {
   poll: Poll
   onRefetch: () => void
+  hideResultsLinks?: boolean
 }
 
-export function VotingPhase({ poll, onRefetch }: VotingPhaseProps) {
+export function VotingPhase({ poll, onRefetch, hideResultsLinks }: VotingPhaseProps) {
   const nominations = poll.nominations ?? []
   const [ranked, setRanked] = useState<PollNomination[]>(nominations)
   const [selected, setSelected] = useState<string | null>(null)
@@ -138,7 +139,7 @@ export function VotingPhase({ poll, onRefetch }: VotingPhaseProps) {
             <span className="text-success text-lg">✓</span>
             <p className="text-sm font-semibold text-ink">Vote submitted! Live standings below.</p>
           </div>
-          <ResultsView poll={poll} />
+          <ResultsView poll={poll} hideLinks={hideResultsLinks} />
         </div>
       )
     }

@@ -17,9 +17,9 @@ function CategorySection({ poll, onRefetch }: { poll: Poll; onRefetch: () => voi
       </summary>
       <div className="px-5 pb-5">
         {poll.phase === 'closed' ? (
-          <ResultsView poll={poll} />
+          <ResultsView poll={poll} hideLinks />
         ) : (
-          <VotingPhase poll={poll} onRefetch={onRefetch} />
+          <VotingPhase poll={poll} onRefetch={onRefetch} hideResultsLinks />
         )}
       </div>
     </details>
