@@ -171,6 +171,7 @@ pollsRouter.delete('/:id', adminAuth, async (c) => {
     c.env.DB.prepare('DELETE FROM votes WHERE poll_id = ?').bind(id),
     c.env.DB.prepare('DELETE FROM nominations WHERE poll_id = ?').bind(id),
     c.env.DB.prepare('DELETE FROM participants WHERE poll_id = ?').bind(id),
+    c.env.DB.prepare('DELETE FROM event_polls WHERE poll_id = ?').bind(id),
     c.env.DB.prepare('DELETE FROM polls WHERE id = ?').bind(id),
   ])
 

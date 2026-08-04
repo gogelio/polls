@@ -148,7 +148,12 @@ export const api = {
   },
 
   getEvent: async (slug: string, pollIds: string[] = []): Promise<EventPayload> => {
-    const tokenPairs = pollIds
+    const knownIds = new Set(pollIds)
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key?.startsWith('poll_token_')) knownIds.add(key.slice('poll_token_'.length))
+    }
+    const tokenPairs = [...knownIds]
       .map(id => { const t = getToken(id); return t ? `${id}:${t}` : null })
       .filter((v): v is string => v !== null)
     const headers: HeadersInit = tokenPairs.length ? { 'Participant-Tokens': tokenPairs.join(',') } : {}

@@ -77,9 +77,9 @@ eventsRouter.get('/:slug', async (c) => {
     if (!scheduleByDay.has(row.day)) scheduleByDay.set(row.day, [])
     scheduleByDay.get(row.day)!.push(slot)
   }
-  const schedule = DAY_ORDER
-    .filter(day => scheduleByDay.has(day))
-    .map(day => ({ day, slots: scheduleByDay.get(day)! }))
+  const knownDays = DAY_ORDER.filter(day => scheduleByDay.has(day))
+  const otherDays = [...scheduleByDay.keys()].filter(day => !DAY_ORDER.includes(day))
+  const schedule = [...knownDays, ...otherDays].map(day => ({ day, slots: scheduleByDay.get(day)! }))
 
   return c.json({
     id: event.id,

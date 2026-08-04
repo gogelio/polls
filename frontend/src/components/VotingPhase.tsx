@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
   type DragEndEvent,
@@ -88,6 +88,10 @@ export function VotingPhase({ poll, onRefetch }: VotingPhaseProps) {
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(poll.has_voted ?? false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (poll.has_voted) setSubmitted(true)
+  }, [poll.has_voted])
 
   const sensors = useSensors(
     useSensor(PointerSensor),

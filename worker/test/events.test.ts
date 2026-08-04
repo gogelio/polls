@@ -66,6 +66,18 @@ describe('GET /events/:slug', () => {
     expect(body2.phase).toBe('closed')
   })
 
+  it('does not silently drop days that are not in the canonical DAY_ORDER list', async () => {
+    const { id: pollA } = await seedPoll({ category: 'movie' })
+    await seedEvent({ id: 'glarm26' })
+    await seedEventPoll('glarm26', pollA, 'Action', 0)
+    await seedEventSlot('glarm26', 'Sunday', 1, 'Action', 1)
+
+    const res = await SELF.fetch('http://example.com/events/glarm26')
+    expect(res.status).toBe(200)
+    const body = await res.json() as { schedule: Array<{ day: string }> }
+    expect(body.schedule.map(s => s.day)).toContain('Sunday')
+  })
+
   it('reports phase voting when the event has no linked polls', async () => {
     await seedEvent({ id: 'glarm26' })
 

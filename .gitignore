@@ -6,3 +6,4 @@ dist/
 .superpowers/
 frontend/src/**/*.js
 .DS_Store
+seed-*.sql
