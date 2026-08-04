@@ -11,3 +11,14 @@ database_id = "ab09afe9-11d7-4b0d-a284-da895e8fbe51"
 migrations_dir = "migrations"
 
 [vars]
+
+[env.dev]
+name = "polls-worker-dev"
+
+[[env.dev.d1_databases]]
+binding = "DB"
+database_name = "polls-dev"
+database_id = "0f96d07d-94d9-41a3-a23e-f712dfae88ff"
+
+[env.dev.vars]
+ALLOWED_ORIGINS = "https://dev-polls.gogel.io"
