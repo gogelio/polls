@@ -23,6 +23,19 @@ CREATE TABLE IF NOT EXISTS votes (
   nomination_id TEXT NOT NULL, rank INTEGER, created_at INTEGER NOT NULL,
   UNIQUE(poll_id, participant_id, nomination_id),
   UNIQUE(poll_id, participant_id, rank)
+);
+CREATE TABLE IF NOT EXISTS events (
+  id TEXT PRIMARY KEY, admin_token TEXT NOT NULL, title TEXT NOT NULL,
+  is_public INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS event_polls (
+  event_id TEXT NOT NULL, poll_id TEXT NOT NULL, category TEXT NOT NULL,
+  sort_order INTEGER NOT NULL, PRIMARY KEY (event_id, poll_id)
+);
+CREATE TABLE IF NOT EXISTS event_slots (
+  event_id TEXT NOT NULL, day TEXT NOT NULL, slot_order INTEGER NOT NULL,
+  category TEXT NOT NULL, placement INTEGER NOT NULL,
+  PRIMARY KEY (event_id, day, slot_order)
 );`
 
 export async function applySchema() {
@@ -66,4 +79,31 @@ export async function seedNomination(pollId: string, participantId: string, titl
     'INSERT INTO nominations (id, poll_id, participant_id, title, created_at) VALUES (?, ?, ?, ?, ?)'
   ).bind(id, pollId, participantId, title, Date.now()).run()
   return { id }
+}
+
+export async function seedEvent(overrides: Record<string, unknown> = {}) {
+  const id = (overrides.id as string) ?? nanoid(8)
+  const adminToken = (overrides.admin_token as string) ?? nanoid(24)
+  await env.DB.prepare(
+    'INSERT INTO events (id, admin_token, title, is_public, created_at) VALUES (?, ?, ?, ?, ?)'
+  ).bind(
+    id,
+    adminToken,
+    overrides.title ?? 'Test Event',
+    overrides.is_public ?? 0,
+    Date.now()
+  ).run()
+  return { id, adminToken }
+}
+
+export async function seedEventPoll(eventId: string, pollId: string, category: string, sortOrder = 0) {
+  await env.DB.prepare(
+    'INSERT INTO event_polls (event_id, poll_id, category, sort_order) VALUES (?, ?, ?, ?)'
+  ).bind(eventId, pollId, category, sortOrder).run()
+}
+
+export async function seedEventSlot(eventId: string, day: string, slotOrder: number, category: string, placement: number) {
+  await env.DB.prepare(
+    'INSERT INTO event_slots (event_id, day, slot_order, category, placement) VALUES (?, ?, ?, ?, ?)'
+  ).bind(eventId, day, slotOrder, category, placement).run()
 }
