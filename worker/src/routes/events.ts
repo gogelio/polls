@@ -66,8 +66,16 @@ eventsRouter.get('/:slug', async (c) => {
   // closed poll's results are always public, same as everywhere else.
   const visibleCategories = new Set<string>()
   // Each event participant is a separate row per poll (same name, distinct
-  // token) — de-dupe by name to get a single event-wide voter headcount.
-  const voterNames = new Set<string>()
+  // token) — de-dupe by name (case-insensitively) to get a single
+  // event-wide voter headcount, computed in one query across all linked
+  // polls rather than once per poll.
+  const { results: voterRows } = await c.env.DB.prepare(
+    `SELECT DISTINCT LOWER(p.name) as name FROM participants p
+     JOIN votes v ON v.participant_id = p.id
+     JOIN event_polls ep ON ep.poll_id = p.poll_id
+     WHERE ep.event_id = ?`
+  ).bind(slug).all<{ name: string }>()
+  const voterNames = new Set(voterRows.map(v => v.name))
 
   for (const link of links) {
     const pollResponse = await buildPollResponse(c.env, link.poll_id, tokens.get(link.poll_id) ?? null)
@@ -84,11 +92,6 @@ eventsRouter.get('/:slug', async (c) => {
       'SELECT participant_id, nomination_id, rank FROM votes WHERE poll_id = ?'
     ).bind(link.poll_id).all<VoteRow>()
     resultsByCategory.set(link.category, rankedChoice(votes, nominations))
-
-    const { results: voters } = await c.env.DB.prepare(
-      `SELECT DISTINCT p.name FROM participants p JOIN votes v ON v.participant_id = p.id WHERE v.poll_id = ?`
-    ).bind(link.poll_id).all<{ name: string }>()
-    for (const voter of voters) voterNames.add(voter.name)
   }
 
   const phase = categories.length > 0 && categories.every(cat => cat.poll.phase === 'closed') ? 'closed' : 'voting'

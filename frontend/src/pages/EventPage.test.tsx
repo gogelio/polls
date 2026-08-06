@@ -167,10 +167,10 @@ describe('EventPage header voter stats', () => {
   })
 
   it.each([
-    [0, '0 Vote Submissions'],
-    [1, '1 Vote Submission'],
-    [2, '2 Vote Submissions'],
-  ])('renders "%s" as "%s"', async (count, expectedText) => {
+    [0, '0 Vote Submissions', false],
+    [1, '1 Vote Submission', true],
+    [2, '2 Vote Submissions', false],
+  ])('renders "%s" as "%s"', async (count, expectedText, singular) => {
     fakeTokenStore.add('action-poll')
     vi.mocked(api.getEvent).mockResolvedValue(buildEvent(['a', 'b', 'c'], count))
 
@@ -182,6 +182,10 @@ describe('EventPage header voter stats', () => {
       </MemoryRouter>
     )
 
-    expect(await screen.findByText(expectedText, { exact: false })).toBeTruthy()
+    // For the singular case, use a negative lookahead so this fails if the
+    // component incorrectly renders "1 Vote Submissions" — a plain
+    // exact:false substring match would pass vacuously in that case.
+    const expected = singular ? /1 Vote Submission(?!s)/ : expectedText
+    expect(await screen.findByText(expected, { exact: false })).toBeTruthy()
   })
 })
