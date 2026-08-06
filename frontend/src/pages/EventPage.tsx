@@ -119,22 +119,39 @@ export function EventPage() {
     }
   }
 
+  const votedFraction = event.categories.length > 0 ? votedCount / event.categories.length : 0
+
   const header = (
     <div className="card p-6">
-      <div className="flex items-center gap-2 mb-2 flex-wrap">
-        <span className="badge text-ink-3 bg-surface border border-line">🎬 Event</span>
-        <span className={`badge ${event.phase === 'closed' ? 'text-success bg-[oklch(68%_0.18_145_/_0.12)]' : 'text-warn bg-[oklch(72%_0.17_65_/_0.12)]'}`}>
-          {event.phase === 'closed' ? 'Closed' : 'Voting'}
-        </span>
+      <div className="flex items-start justify-between gap-2 mb-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="badge text-ink-3 bg-surface border border-line">🎬 Event</span>
+          <span className={`badge ${event.phase === 'closed' ? 'text-success bg-[oklch(68%_0.18_145_/_0.12)]' : 'text-warn bg-[oklch(72%_0.17_65_/_0.12)]'}`}>
+            {event.phase === 'closed' ? 'Closed' : 'Voting'}
+          </span>
+        </div>
+        {voterName && (
+          <span className="badge text-ink-2 bg-surface border border-line">👤 {voterName}</span>
+        )}
       </div>
       <h1 className="text-2xl font-extrabold text-ink tracking-tight text-wrap-balance">{event.title}</h1>
       {!needsJoin && (
-        <p className="text-ink-3 text-sm mt-1">
-          <span className="whitespace-nowrap">{votedCount} of {event.categories.length} categories voted</span>
-          {' | '}
-          <span className="whitespace-nowrap">{event.voter_count} Vote Submission{event.voter_count === 1 ? '' : 's'}</span>
-          {voterName && <>{' | '}<span className="whitespace-nowrap">Voting as {voterName}</span></>}
-        </p>
+        <div className="mt-3 space-y-1.5">
+          <div className="flex items-center gap-2.5">
+            <div className="flex-1 h-1.5 rounded-full bg-line overflow-hidden">
+              <div
+                className="h-full bg-accent rounded-full transition-[width] duration-300 ease-out"
+                style={{ width: `${Math.round(votedFraction * 100)}%` }}
+              />
+            </div>
+            <span className="text-xs text-ink-2 font-semibold tabular-nums flex-shrink-0">
+              {votedCount}/{event.categories.length} voted
+            </span>
+          </div>
+          <p className="text-ink-3 text-xs">
+            {event.voter_count} Vote Submission{event.voter_count === 1 ? '' : 's'}
+          </p>
+        </div>
       )}
     </div>
   )

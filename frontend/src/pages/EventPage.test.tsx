@@ -156,7 +156,7 @@ describe('EventPage join flow', () => {
     })
 
     // The header must also show the name the participant just joined as.
-    expect(screen.getByText(/Voting as Bob/)).toBeTruthy()
+    expect(screen.getByText(/👤 Bob/)).toBeTruthy()
   })
 })
 
