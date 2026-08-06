@@ -8,6 +8,20 @@ import { EventAdminControls } from '../components/EventAdminControls'
 import { Bracket } from '../components/Bracket'
 import type { Poll } from '../types'
 
+// Reading localStorage directly (rather than through api/client.ts, which
+// tests mock out wholesale) means this call is exercised for real in jsdom.
+// jsdom's localStorage isn't functional under this project's current
+// Node/Vitest combo (see the comment atop EventPage.test.tsx), so guard the
+// read the same way a real browser in private-browsing mode would need to be
+// guarded anyway.
+function safeGetItem(key: string): string | null {
+  try {
+    return localStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+
 function CategorySection({ poll, onRefetch, adminToken }: { poll: Poll; onRefetch: () => void; adminToken: string | null }) {
   return (
     <details className="card p-0 overflow-hidden" open>
@@ -75,6 +89,7 @@ export function EventPage() {
   }
   const needsJoin = !justJoined && !hadAllTokensAtLoadRef.current
   const votedCount = event.categories.filter(cat => cat.poll.has_voted).length
+  const voterName = joinedName ?? safeGetItem(`event_name_${slug}`)
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -107,6 +122,7 @@ export function EventPage() {
         <p className="text-ink-3 text-sm mt-1">
           {votedCount} of {event.categories.length} categories voted
           {' | '}{event.voter_count} Vote Submission{event.voter_count === 1 ? '' : 's'}
+          {voterName && <>{' | '}Voting as {voterName}</>}
         </p>
       )}
     </div>

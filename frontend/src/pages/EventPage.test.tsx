@@ -154,6 +154,9 @@ describe('EventPage join flow', () => {
       const titles = screen.getAllByText(/^Movie [ABC]$/).map(el => el.textContent)
       expect(titles).toEqual(['Movie C', 'Movie A', 'Movie B'])
     })
+
+    // The header must also show the name the participant just joined as.
+    expect(screen.getByText(/Voting as Bob/)).toBeTruthy()
   })
 })
 

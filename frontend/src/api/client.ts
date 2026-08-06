@@ -199,6 +199,7 @@ export const api = {
     }))
     const data = await res.json() as { name: string; rejoined: boolean; participants: Array<{ poll_id: string; participant_id: string; token: string }> }
     data.participants.forEach(p => setToken(p.poll_id, p.token))
+    localStorage.setItem(`event_name_${slug}`, data.name)
     return data
   },
 
