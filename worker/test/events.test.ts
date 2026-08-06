@@ -220,6 +220,52 @@ describe('GET /events/:slug', () => {
     expect(categoryA?.poll.has_voted).toBe(true)
     expect(categoryB?.poll.has_voted).toBe(false)
   })
+
+  it('counts each distinct voter once across categories, not once per vote row', async () => {
+    const { id: pollA } = await seedPoll({ title: 'Action', voting_method: 'plurality' })
+    const { id: pollB } = await seedPoll({ title: 'Comedy', voting_method: 'plurality' })
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id IN (?, ?)").bind(pollA, pollB).run()
+
+    // Alice joins (and votes in) both categories; her name appears as two
+    // separate participant rows, one per poll — the same as a real event.
+    const { id: aliceInA } = await seedParticipant(pollA, 'Alice')
+    const { id: aliceInB } = await seedParticipant(pollB, 'Alice')
+    const { id: bobInA } = await seedParticipant(pollA, 'Bob')
+
+    const { id: nomA } = await seedNomination(pollA, aliceInA, 'Movie A')
+    const { id: nomB } = await seedNomination(pollB, aliceInB, 'Movie B')
+
+    await env.DB.prepare(
+      'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+    ).bind('v1', pollA, aliceInA, nomA, null, Date.now()).run()
+    await env.DB.prepare(
+      'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+    ).bind('v2', pollB, aliceInB, nomB, null, Date.now()).run()
+    await env.DB.prepare(
+      'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+    ).bind('v3', pollA, bobInA, nomA, null, Date.now()).run()
+
+    await seedEvent({ id: 'glarm26' })
+    await seedEventPoll('glarm26', pollA, 'Action', 0)
+    await seedEventPoll('glarm26', pollB, 'Comedy', 1)
+
+    const res = await SELF.fetch('http://example.com/events/glarm26')
+    expect(res.status).toBe(200)
+    const body = await res.json() as { voter_count: number }
+    // Alice voted in both categories but counts once; Bob counts once. Not 3.
+    expect(body.voter_count).toBe(2)
+  })
+
+  it('reports voter_count of 0 when no votes have been cast', async () => {
+    const { id: pollA } = await seedPoll({ title: 'Action' })
+    await seedEvent({ id: 'glarm26' })
+    await seedEventPoll('glarm26', pollA, 'Action', 0)
+
+    const res = await SELF.fetch('http://example.com/events/glarm26')
+    expect(res.status).toBe(200)
+    const body = await res.json() as { voter_count: number }
+    expect(body.voter_count).toBe(0)
+  })
 })
 
 describe('POST /events/:slug/join', () => {
