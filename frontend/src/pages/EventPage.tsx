@@ -104,7 +104,10 @@ export function EventPage() {
       </div>
       <h1 className="text-2xl font-extrabold text-ink tracking-tight text-wrap-balance">{event.title}</h1>
       {!needsJoin && (
-        <p className="text-ink-3 text-sm mt-1">{votedCount} of {event.categories.length} categories voted</p>
+        <p className="text-ink-3 text-sm mt-1">
+          {votedCount} of {event.categories.length} categories voted
+          {' | '}{event.voter_count} Vote Submission{event.voter_count === 1 ? '' : 's'}
+        </p>
       )}
     </div>
   )

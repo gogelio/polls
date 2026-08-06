@@ -52,7 +52,7 @@ afterEach(() => {
   fakeTokenStore.clear()
 })
 
-function buildEvent(nominationOrder: string[]): EventPayload {
+function buildEvent(nominationOrder: string[], voterCount = 0): EventPayload {
   const byId: Record<string, { id: string; title: string }> = {
     a: { id: 'a', title: 'Movie A' },
     b: { id: 'b', title: 'Movie B' },
@@ -64,6 +64,7 @@ function buildEvent(nominationOrder: string[]): EventPayload {
     is_public: true,
     phase: 'voting',
     schedule: [],
+    voter_count: voterCount,
     created_at: 1,
     categories: [
       {
@@ -153,5 +154,31 @@ describe('EventPage join flow', () => {
       const titles = screen.getAllByText(/^Movie [ABC]$/).map(el => el.textContent)
       expect(titles).toEqual(['Movie C', 'Movie A', 'Movie B'])
     })
+  })
+})
+
+describe('EventPage header voter stats', () => {
+  afterEach(() => {
+    cleanup()
+    fakeTokenStore.clear()
+  })
+
+  it.each([
+    [0, '0 Vote Submissions'],
+    [1, '1 Vote Submission'],
+    [2, '2 Vote Submissions'],
+  ])('renders "%s" as "%s"', async (count, expectedText) => {
+    fakeTokenStore.add('action-poll')
+    vi.mocked(api.getEvent).mockResolvedValue(buildEvent(['a', 'b', 'c'], count))
+
+    render(
+      <MemoryRouter initialEntries={['/e/glarm26']}>
+        <Routes>
+          <Route path="/e/:slug" element={<EventPage />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    expect(await screen.findByText(expectedText, { exact: false })).toBeTruthy()
   })
 })

@@ -107,5 +107,6 @@ export interface EventPayload {
   phase: Phase
   categories: EventCategory[]
   schedule: EventDay[]
+  voter_count: number
   created_at: number
 }
