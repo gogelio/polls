@@ -77,22 +77,47 @@ eventsRouter.get('/:slug', async (c) => {
   ).bind(slug).all<{ name: string }>()
   const voterNames = new Set(voterRows.map(v => v.name))
 
-  for (const link of links) {
-    const pollResponse = await buildPollResponse(c.env, link.poll_id, tokens.get(link.poll_id) ?? null)
-    if (!pollResponse) continue
+  // Fetch nominations/votes for every category poll in two queries total
+  // instead of two-per-category — an 8-category event was previously making
+  // ~16 sequential round trips here alone, on top of buildPollResponse's own
+  // per-poll queries, which was long enough to occasionally trip the
+  // worker's request timeout and fail without ever reaching the CORS
+  // middleware (the browser then reports it as a CORS error).
+  const pollIds = links.map(link => link.poll_id)
+  let nominationsByPoll: Partial<Record<string, (NominationRow & { poll_id: string })[]>> = {}
+  let votesByPoll: Partial<Record<string, (VoteRow & { poll_id: string })[]>> = {}
+  if (pollIds.length > 0) {
+    const placeholders = pollIds.map(() => '?').join(',')
+    const [{ results: allNominations }, { results: allVotes }] = await Promise.all([
+      c.env.DB.prepare(
+        `SELECT id, poll_id, title, metadata FROM nominations WHERE poll_id IN (${placeholders})`
+      ).bind(...pollIds).all<NominationRow & { poll_id: string }>(),
+      c.env.DB.prepare(
+        `SELECT poll_id, participant_id, nomination_id, rank FROM votes WHERE poll_id IN (${placeholders})`
+      ).bind(...pollIds).all<VoteRow & { poll_id: string }>(),
+    ])
+    nominationsByPoll = Object.groupBy(allNominations, n => n.poll_id)
+    votesByPoll = Object.groupBy(allVotes, v => v.poll_id)
+  }
+
+  // Each poll's detail fetch is independent of the others, so run them
+  // concurrently rather than awaiting one at a time — the same timeout risk
+  // as the N+1 query fix above, just one level up.
+  const pollResponses = await Promise.all(
+    links.map(link => buildPollResponse(c.env, link.poll_id, tokens.get(link.poll_id) ?? null))
+  )
+  links.forEach((link, i) => {
+    const pollResponse = pollResponses[i]
+    if (!pollResponse) return
     categories.push({ category: link.category, sort_order: link.sort_order, poll: pollResponse })
     if (pollResponse.votes_visible || pollResponse.phase === 'closed' || isEventAdmin) {
       visibleCategories.add(link.category)
     }
 
-    const { results: nominations } = await c.env.DB.prepare(
-      'SELECT id, title, metadata FROM nominations WHERE poll_id = ?'
-    ).bind(link.poll_id).all<NominationRow>()
-    const { results: votes } = await c.env.DB.prepare(
-      'SELECT participant_id, nomination_id, rank FROM votes WHERE poll_id = ?'
-    ).bind(link.poll_id).all<VoteRow>()
+    const nominations = nominationsByPoll[link.poll_id] ?? []
+    const votes = votesByPoll[link.poll_id] ?? []
     resultsByCategory.set(link.category, rankedChoice(votes, nominations))
-  }
+  })
 
   const phase = categories.length > 0 && categories.every(cat => cat.poll.phase === 'closed') ? 'closed' : 'voting'
 
