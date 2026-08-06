@@ -29,7 +29,7 @@ export function NominationCard({ nomination, category, onDelete }: NominationCar
           <img src={imageUrl} alt="" className="w-9 h-14 object-cover rounded-lg flex-shrink-0" />
         )}
         <div className="flex-1 min-w-0">
-          <div className="font-semibold text-sm text-ink truncate">{displayTitle}</div>
+          <div className="font-semibold text-sm text-ink truncate" title={displayTitle}>{displayTitle}</div>
           {meta?.author && (
             <div className="text-xs text-ink-2">{meta.author}{meta.year ? ` · ${meta.year}` : ''}</div>
           )}

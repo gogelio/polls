@@ -139,11 +139,11 @@ export function ResultsView({ poll, hideLinks, hideNominatedBy }: ResultsViewPro
                 <span className="w-5 text-xs font-bold text-ink-3 tabular-nums text-right flex-shrink-0">{i + 1}</span>
                 <div className="flex-1 min-w-0">
                   {standingUrl ? (
-                    <a href={standingUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-ink truncate block hover:underline">
+                    <a href={standingUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-ink truncate block hover:underline" title={standingDisplayTitle}>
                       {standingDisplayTitle}
                     </a>
                   ) : (
-                    <span className="text-sm font-semibold text-ink truncate block">{standingDisplayTitle}</span>
+                    <span className="text-sm font-semibold text-ink truncate block" title={standingDisplayTitle}>{standingDisplayTitle}</span>
                   )}
                   {r.nomination_id === myPickId && (
                     <span className="block text-accent text-xs font-bold">🎯 Your pick</span>

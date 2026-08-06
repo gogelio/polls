@@ -24,10 +24,20 @@ function safeGetItem(key: string): string | null {
 
 function CategorySection({ poll, onRefetch, adminToken }: { poll: Poll; onRefetch: () => void; adminToken: string | null }) {
   return (
-    <details className="card p-0 overflow-hidden" open>
-      <summary className="cursor-pointer select-none px-5 py-4 font-bold text-ink flex items-center justify-between">
-        <span>{poll.title}</span>
-        {poll.has_voted && <span className="text-success text-xs font-bold">✓ Voted</span>}
+    <details className="card p-0 overflow-hidden group" open>
+      <summary className="cursor-pointer select-none px-5 py-4 font-bold text-ink flex items-center justify-between gap-3">
+        <span className="flex items-center gap-2 min-w-0">
+          <svg
+            viewBox="0 0 20 20"
+            fill="none"
+            className="w-3.5 h-3.5 text-ink-3 flex-shrink-0 transition-transform duration-200 group-open:rotate-90"
+            aria-hidden="true"
+          >
+            <path d="M6 4l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span className="truncate">{poll.title}</span>
+        </span>
+        {poll.has_voted && <span className="text-success text-xs font-bold flex-shrink-0">✓ Voted</span>}
       </summary>
       <div className="px-5 pb-5">
         {poll.phase === 'closed' ? (
@@ -120,9 +130,10 @@ export function EventPage() {
       <h1 className="text-2xl font-extrabold text-ink tracking-tight text-wrap-balance">{event.title}</h1>
       {!needsJoin && (
         <p className="text-ink-3 text-sm mt-1">
-          {votedCount} of {event.categories.length} categories voted
-          {' | '}{event.voter_count} Vote Submission{event.voter_count === 1 ? '' : 's'}
-          {voterName && <>{' | '}Voting as {voterName}</>}
+          <span className="whitespace-nowrap">{votedCount} of {event.categories.length} categories voted</span>
+          {' | '}
+          <span className="whitespace-nowrap">{event.voter_count} Vote Submission{event.voter_count === 1 ? '' : 's'}</span>
+          {voterName && <>{' | '}<span className="whitespace-nowrap">Voting as {voterName}</span></>}
         </p>
       )}
     </div>

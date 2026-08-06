@@ -63,11 +63,12 @@ function SortableItem({ nomination, rank, category, pollId, adminToken, onNomina
             rel="noopener noreferrer"
             onClick={e => e.stopPropagation()}
             className="font-semibold text-sm text-ink truncate hover:underline block"
+            title={displayTitle}
           >
             {displayTitle}
           </a>
         ) : (
-          <div className="font-semibold text-sm text-ink truncate">{displayTitle}</div>
+          <div className="font-semibold text-sm text-ink truncate" title={displayTitle}>{displayTitle}</div>
         )}
         {meta?.author && <div className="text-xs text-ink-3">{meta.author}</div>}
         {meta?.director && <div className="text-xs text-ink-3">{meta.director}</div>}
