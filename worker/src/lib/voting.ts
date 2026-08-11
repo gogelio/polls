@@ -157,3 +157,48 @@ export function rankedPairs(votes: VoteRow[], nominations: NominationRow[]): Ran
         : 0,
     }))
 }
+
+export interface VoterLuck {
+  participant_id: string
+  participant_name: string
+  nomination_id: string
+  title: string
+  placement: number
+  total: number
+  score: number
+}
+
+export function computeVoterLuck(
+  votes: VoteRow[],
+  results: RankedResult[],
+  participantNames: Map<string, string>
+): VoterLuck[] {
+  const placementByNomination = new Map(results.map((r, i) => [r.nomination_id, i + 1]))
+  const total = results.length
+
+  // A voter's "pick" is their top choice: the single row for plurality
+  // (rank always null) or the rank=1 row for a ranked ballot — this one
+  // condition covers both without branching on voting method.
+  const topPickByParticipant = new Map<string, string>()
+  for (const vote of votes) {
+    if (vote.rank === null || vote.rank === 1) topPickByParticipant.set(vote.participant_id, vote.nomination_id)
+  }
+
+  const luck: VoterLuck[] = []
+  for (const [participantId, nominationId] of topPickByParticipant) {
+    const placement = placementByNomination.get(nominationId)
+    const result = results.find(r => r.nomination_id === nominationId)
+    if (placement === undefined || !result) continue
+    luck.push({
+      participant_id: participantId,
+      participant_name: participantNames.get(participantId) ?? 'Unknown',
+      nomination_id: nominationId,
+      title: result.title,
+      placement,
+      total,
+      score: total > 1 ? (total - placement) / (total - 1) : 1,
+    })
+  }
+
+  return luck.sort((a, b) => a.placement - b.placement)
+}

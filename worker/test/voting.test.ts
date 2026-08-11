@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { plurality, rankedChoice, rankedPairs } from '../src/lib/voting'
-import type { VoteRow, NominationRow, RankedResult } from '../src/lib/voting'
+import { plurality, rankedChoice, rankedPairs, computeVoterLuck } from '../src/lib/voting'
+import type { VoteRow, NominationRow, RankedResult, VoterLuck } from '../src/lib/voting'
 import { resolveSlot } from '../src/lib/bracket'
 
 const noms: NominationRow[] = [
@@ -162,5 +162,66 @@ describe('resolveSlot', () => {
       { nomination_id: 'b', title: 'B', metadata: null, score: 2, percentage: 100 },
     ]
     expect(resolveSlot(results, 2)).toEqual({ status: 'unresolved', movies: [] })
+  })
+})
+
+describe('computeVoterLuck', () => {
+  const results: RankedResult[] = [
+    { nomination_id: 'a', title: 'A', metadata: null, score: 10, percentage: 50 },
+    { nomination_id: 'b', title: 'B', metadata: null, score: 6, percentage: 30 },
+    { nomination_id: 'c', title: 'C', metadata: null, score: 2, percentage: 20 },
+  ]
+  const names = new Map([['p1', 'Alice'], ['p2', 'Bob'], ['p3', 'Carol']])
+
+  it('uses the single vote for plurality (rank=null)', () => {
+    const votes: VoteRow[] = [
+      { participant_id: 'p1', nomination_id: 'a', rank: null },
+      { participant_id: 'p2', nomination_id: 'c', rank: null },
+    ]
+    const luck = computeVoterLuck(votes, results, names)
+    expect(luck).toHaveLength(2)
+    const alice = luck.find(l => l.participant_id === 'p1')!
+    expect(alice.placement).toBe(1)
+    expect(alice.score).toBe(1)
+    expect(alice.participant_name).toBe('Alice')
+    expect(alice.title).toBe('A')
+    const bob = luck.find(l => l.participant_id === 'p2')!
+    expect(bob.placement).toBe(3)
+    expect(bob.score).toBe(0)
+  })
+
+  it('uses only the rank=1 entry for a ranked ballot, ignoring later ranks', () => {
+    const votes: VoteRow[] = [
+      { participant_id: 'p1', nomination_id: 'b', rank: 1 },
+      { participant_id: 'p1', nomination_id: 'a', rank: 2 },
+      { participant_id: 'p1', nomination_id: 'c', rank: 3 },
+    ]
+    const luck = computeVoterLuck(votes, results, names)
+    expect(luck).toHaveLength(1)
+    expect(luck[0]!.nomination_id).toBe('b')
+    expect(luck[0]!.placement).toBe(2)
+  })
+
+  it('skips a voter whose top pick is not in results (e.g. a removed nomination)', () => {
+    const votes: VoteRow[] = [{ participant_id: 'p1', nomination_id: 'ghost', rank: null }]
+    const luck = computeVoterLuck(votes, results, names)
+    expect(luck).toHaveLength(0)
+  })
+
+  it('sorts luckiest (lowest placement) first', () => {
+    const votes: VoteRow[] = [
+      { participant_id: 'p1', nomination_id: 'c', rank: null },
+      { participant_id: 'p2', nomination_id: 'a', rank: null },
+      { participant_id: 'p3', nomination_id: 'b', rank: null },
+    ]
+    const luck = computeVoterLuck(votes, results, names)
+    expect(luck.map(l => l.participant_id)).toEqual(['p2', 'p3', 'p1'])
+  })
+
+  it('gives everyone a score of 1 when there is only one nomination', () => {
+    const single: RankedResult[] = [{ nomination_id: 'a', title: 'A', metadata: null, score: 1, percentage: 100 }]
+    const votes: VoteRow[] = [{ participant_id: 'p1', nomination_id: 'a', rank: null }]
+    const luck = computeVoterLuck(votes, single, names)
+    expect(luck[0]!.score).toBe(1)
   })
 })
