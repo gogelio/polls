@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import type { Env } from '../types'
 import { buildPollResponse } from '../lib/pollDetail'
-import { rankedChoice, type RankedResult, type NominationRow, type VoteRow } from '../lib/voting'
+import { plurality, rankedChoice, rankedPairs, computeVoterLuck, type RankedResult, type NominationRow, type VoteRow, type VoterLuck } from '../lib/voting'
 import { resolveSlot } from '../lib/bracket'
 import { joinOrReclaim } from '../lib/joinOrReclaim'
 import { eventAdminAuth, isValidEventAdminToken } from '../middleware/auth'
@@ -86,18 +86,23 @@ eventsRouter.get('/:slug', async (c) => {
   const pollIds = links.map(link => link.poll_id)
   let nominationsByPoll: Partial<Record<string, (NominationRow & { poll_id: string })[]>> = {}
   let votesByPoll: Partial<Record<string, (VoteRow & { poll_id: string })[]>> = {}
+  let participantNamesByPoll: Partial<Record<string, { id: string; poll_id: string; name: string }[]>> = {}
   if (pollIds.length > 0) {
     const placeholders = pollIds.map(() => '?').join(',')
-    const [{ results: allNominations }, { results: allVotes }] = await Promise.all([
+    const [{ results: allNominations }, { results: allVotes }, { results: allParticipants }] = await Promise.all([
       c.env.DB.prepare(
         `SELECT id, poll_id, title, metadata FROM nominations WHERE poll_id IN (${placeholders})`
       ).bind(...pollIds).all<NominationRow & { poll_id: string }>(),
       c.env.DB.prepare(
         `SELECT poll_id, participant_id, nomination_id, rank FROM votes WHERE poll_id IN (${placeholders})`
       ).bind(...pollIds).all<VoteRow & { poll_id: string }>(),
+      c.env.DB.prepare(
+        `SELECT id, poll_id, name FROM participants WHERE poll_id IN (${placeholders})`
+      ).bind(...pollIds).all<{ id: string; poll_id: string; name: string }>(),
     ])
     nominationsByPoll = Object.groupBy(allNominations, n => n.poll_id)
     votesByPoll = Object.groupBy(allVotes, v => v.poll_id)
+    participantNamesByPoll = Object.groupBy(allParticipants, p => p.poll_id)
   }
 
   // Each poll's detail fetch is independent of the others, so run them
@@ -106,20 +111,50 @@ eventsRouter.get('/:slug', async (c) => {
   const pollResponses = await Promise.all(
     links.map(link => buildPollResponse(c.env, link.poll_id, tokens.get(link.poll_id) ?? null))
   )
+  const luckScoresByName = new Map<string, { displayName: string; scores: number[] }>()
+
   links.forEach((link, i) => {
     const pollResponse = pollResponses[i]
     if (!pollResponse) return
     categories.push({ category: link.category, sort_order: link.sort_order, poll: pollResponse })
-    if (pollResponse.votes_visible || pollResponse.phase === 'closed' || isEventAdmin) {
-      visibleCategories.add(link.category)
-    }
+    const isVisible = pollResponse.votes_visible || pollResponse.phase === 'closed' || isEventAdmin
+    if (isVisible) visibleCategories.add(link.category)
 
     const nominations = nominationsByPoll[link.poll_id] ?? []
     const votes = votesByPoll[link.poll_id] ?? []
     resultsByCategory.set(link.category, rankedChoice(votes, nominations))
+
+    if (!isVisible) return
+    const categoryResults = pollResponse.voting_method === 'plurality' ? plurality(votes, nominations)
+      : pollResponse.voting_method === 'ranked_choice' ? rankedChoice(votes, nominations)
+      : rankedPairs(votes, nominations)
+    const namesForPoll = participantNamesByPoll[link.poll_id] ?? []
+    const nameById = new Map(namesForPoll.map(p => [p.id, p.name]))
+    const luck: VoterLuck[] = computeVoterLuck(votes, categoryResults, nameById)
+    for (const entry of luck) {
+      const key = entry.participant_name.toLowerCase()
+      if (!luckScoresByName.has(key)) luckScoresByName.set(key, { displayName: entry.participant_name, scores: [] })
+      luckScoresByName.get(key)!.scores.push(entry.score)
+    }
   })
 
   const phase = categories.length > 0 && categories.every(cat => cat.poll.phase === 'closed') ? 'closed' : 'voting'
+
+  let eventVoterStats: {
+    luckiest: Array<{ name: string; average_score: number; categories_counted: number }>
+    unluckiest: Array<{ name: string; average_score: number; categories_counted: number }>
+  } | undefined
+  if (phase === 'closed' || isEventAdmin) {
+    const averaged = [...luckScoresByName.values()].map(({ displayName, scores }) => ({
+      name: displayName,
+      average_score: scores.reduce((sum, s) => sum + s, 0) / scores.length,
+      categories_counted: scores.length,
+    }))
+    eventVoterStats = {
+      luckiest: [...averaged].sort((a, b) => b.average_score - a.average_score).slice(0, 3),
+      unluckiest: [...averaged].sort((a, b) => a.average_score - b.average_score).slice(0, 3),
+    }
+  }
 
   const { results: slotRows } = await c.env.DB.prepare(
     'SELECT day, slot_order, category, placement FROM event_slots WHERE event_id = ? ORDER BY slot_order ASC'
@@ -144,6 +179,7 @@ eventsRouter.get('/:slug', async (c) => {
     schedule,
     voter_count: voterNames.size,
     created_at: event.created_at,
+    voter_stats: eventVoterStats,
   })
 })
 
