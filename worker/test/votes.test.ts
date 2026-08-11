@@ -193,6 +193,89 @@ describe('GET /polls/:id/results', () => {
     const res = await SELF.fetch(`http://example.com/polls/${id}/results?admin=not-a-real-token`)
     expect(res.status).toBe(403)
   })
+
+  it('omits voter_stats during voting when no admin token is provided', async () => {
+    const { id } = await seedPoll({ voting_method: 'plurality', votes_visible: 1 })
+    const { id: pid } = await seedParticipant(id)
+    const { id: nid } = await seedNomination(id, pid, 'Winner')
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(id).run()
+    await env.DB.prepare(
+      'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+    ).bind('v1', id, pid, nid, null, Date.now()).run()
+
+    const res = await SELF.fetch(`http://example.com/polls/${id}/results`)
+    const body = await res.json() as Record<string, unknown>
+    expect(body.voter_stats).toBeUndefined()
+  })
+
+  it('includes voter_stats for a valid poll admin token during voting phase', async () => {
+    const { id, adminToken } = await seedPoll({ voting_method: 'plurality', votes_visible: 1 })
+    const { id: pid } = await seedParticipant(id)
+    const { id: nid } = await seedNomination(id, pid, 'Winner')
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(id).run()
+    await env.DB.prepare(
+      'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+    ).bind('v1', id, pid, nid, null, Date.now()).run()
+
+    const res = await SELF.fetch(`http://example.com/polls/${id}/results?admin=${adminToken}`)
+    const body = await res.json() as { voter_stats?: { luckiest: unknown[]; unluckiest: unknown[] } }
+    expect(body.voter_stats).toBeDefined()
+    expect(body.voter_stats!.luckiest).toHaveLength(1)
+  })
+
+  it('includes voter_stats for everyone once the poll is closed', async () => {
+    const { id } = await seedPoll({ voting_method: 'plurality' })
+    const { id: pid } = await seedParticipant(id)
+    const { id: nid } = await seedNomination(id, pid, 'Winner')
+    await env.DB.prepare("UPDATE polls SET phase = 'closed' WHERE id = ?").bind(id).run()
+    await env.DB.prepare(
+      'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+    ).bind('v1', id, pid, nid, null, Date.now()).run()
+
+    const res = await SELF.fetch(`http://example.com/polls/${id}/results`)
+    const body = await res.json() as { voter_stats?: { luckiest: unknown[] } }
+    expect(body.voter_stats).toBeDefined()
+  })
+
+  it('lists the luckiest and unluckiest voters by their top pick\'s placement', async () => {
+    const { id } = await seedPoll({ voting_method: 'plurality' })
+    const { id: alice } = await seedParticipant(id, 'Alice')
+    const { id: bob } = await seedParticipant(id, 'Bob')
+    const { id: carol } = await seedParticipant(id, 'Carol')
+    const { id: dave } = await seedParticipant(id, 'Dave')
+    const { id: eve } = await seedParticipant(id, 'Eve')
+    const { id: frank } = await seedParticipant(id, 'Frank')
+    const { id: winner } = await seedNomination(id, alice, 'Winner')
+    const { id: middle } = await seedNomination(id, dave, 'Middle')
+    const { id: last } = await seedNomination(id, frank, 'Last')
+    await env.DB.prepare("UPDATE polls SET phase = 'closed' WHERE id = ?").bind(id).run()
+
+    const insertVote = (voteId: string, participantId: string, nominationId: string) =>
+      env.DB.prepare(
+        'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+      ).bind(voteId, id, participantId, nominationId, null, Date.now()).run()
+
+    await insertVote('v1', alice, winner)
+    await insertVote('v2', bob, winner)
+    await insertVote('v3', carol, winner)
+    await insertVote('v4', dave, middle)
+    await insertVote('v5', eve, middle)
+    await insertVote('v6', frank, last)
+
+    const res = await SELF.fetch(`http://example.com/polls/${id}/results`)
+    const body = await res.json() as {
+      voter_stats: {
+        luckiest: Array<{ participant_name: string; placement: number }>
+        unluckiest: Array<{ participant_name: string; placement: number }>
+      }
+    }
+    const luckyNames = body.voter_stats.luckiest.map(l => l.participant_name).sort()
+    expect(luckyNames).toEqual(['Alice', 'Bob', 'Carol'])
+    expect(body.voter_stats.luckiest.every(l => l.placement === 1)).toBe(true)
+    expect(body.voter_stats.unluckiest[0]!.participant_name).toBe('Frank')
+    expect(body.voter_stats.unluckiest[0]!.placement).toBe(3)
+    expect(body.voter_stats.unluckiest.map(l => l.participant_name).sort()).toEqual(['Dave', 'Eve', 'Frank'])
+  })
 })
 
 describe('PATCH /polls/:id/vote-draft', () => {

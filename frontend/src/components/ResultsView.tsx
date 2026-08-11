@@ -173,6 +173,33 @@ export function ResultsView({ poll, hideLinks, hideNominatedBy }: ResultsViewPro
         })}
       </div>
 
+      {results.voter_stats && (results.voter_stats.luckiest.length > 0 || results.voter_stats.unluckiest.length > 0) && (
+        <div className="card p-5 grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-xs font-bold text-ink-3 uppercase tracking-widest mb-2">🍀 Luckiest Picks</p>
+            <ol className="space-y-1 text-sm">
+              {results.voter_stats.luckiest.map(l => (
+                <li key={l.participant_id} className="text-ink-2">
+                  <span className="font-semibold text-ink">{l.participant_name}</span>{' '}
+                  → {l.title} <span className="text-ink-3">(#{l.placement})</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+          <div>
+            <p className="text-xs font-bold text-ink-3 uppercase tracking-widest mb-2">💔 Unluckiest Picks</p>
+            <ol className="space-y-1 text-sm">
+              {results.voter_stats.unluckiest.map(l => (
+                <li key={l.participant_id} className="text-ink-2">
+                  <span className="font-semibold text-ink">{l.participant_name}</span>{' '}
+                  → {l.title} <span className="text-ink-3">(#{l.placement})</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </div>
+      )}
+
       {!hideLinks && (
         <div className="card p-4 flex gap-4">
           <button

@@ -58,12 +58,29 @@ export interface RankedResult {
   percentage: number
 }
 
+export interface VoterLuck {
+  participant_id: string
+  participant_name: string
+  nomination_id: string
+  title: string
+  placement: number
+  total: number
+  score: number
+}
+
+export interface EventVoterStat {
+  name: string
+  average_score: number
+  categories_counted: number
+}
+
 export interface PollResults {
   poll_id: string
   voting_method: VotingMethod
   results: RankedResult[]
   total_voters: number
   tied: boolean
+  voter_stats?: { luckiest: VoterLuck[]; unluckiest: VoterLuck[] }
 }
 
 export interface SearchResult {
@@ -108,5 +125,6 @@ export interface EventPayload {
   categories: EventCategory[]
   schedule: EventDay[]
   voter_count: number
+  voter_stats?: { luckiest: EventVoterStat[]; unluckiest: EventVoterStat[] }
   created_at: number
 }

@@ -266,6 +266,85 @@ describe('GET /events/:slug', () => {
     const body = await res.json() as { voter_count: number }
     expect(body.voter_count).toBe(0)
   })
+
+  it('omits voter_stats while the event is still open, without an admin token', async () => {
+    const { id: pollA } = await seedPoll({ title: 'Action', category: 'movie', voting_method: 'plurality', votes_visible: 1 })
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(pollA).run()
+    const { id: p1 } = await seedParticipant(pollA, 'Alice')
+    const { id: nom } = await seedNomination(pollA, p1, 'Mad Max')
+    await env.DB.prepare(
+      'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+    ).bind('v1', pollA, p1, nom, null, Date.now()).run()
+
+    await seedEvent({ id: 'glarm26' })
+    await seedEventPoll('glarm26', pollA, 'Action', 0)
+
+    const res = await SELF.fetch('http://example.com/events/glarm26')
+    const body = await res.json() as Record<string, unknown>
+    expect(body.voter_stats).toBeUndefined()
+  })
+
+  it('includes voter_stats for a valid event admin token while still open', async () => {
+    const { id: pollA } = await seedPoll({ title: 'Action', category: 'movie', voting_method: 'plurality', votes_visible: 1 })
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(pollA).run()
+    const { id: p1 } = await seedParticipant(pollA, 'Alice')
+    const { id: nom } = await seedNomination(pollA, p1, 'Mad Max')
+    await env.DB.prepare(
+      'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+    ).bind('v1', pollA, p1, nom, null, Date.now()).run()
+
+    const { adminToken: eventAdminToken } = await seedEvent({ id: 'glarm26' })
+    await seedEventPoll('glarm26', pollA, 'Action', 0)
+
+    const res = await SELF.fetch(`http://example.com/events/glarm26?admin=${eventAdminToken}`)
+    const body = await res.json() as { voter_stats?: { luckiest: unknown[] } }
+    expect(body.voter_stats).toBeDefined()
+    expect(body.voter_stats!.luckiest).toHaveLength(1)
+  })
+
+  it('averages a participant\'s luck score across categories once the event is closed', async () => {
+    const { id: pollA } = await seedPoll({ title: 'Action', category: 'movie', voting_method: 'plurality' })
+    const { id: pollB } = await seedPoll({ title: 'Comedy', category: 'movie', voting_method: 'plurality' })
+    await env.DB.prepare("UPDATE polls SET phase = 'closed' WHERE id IN (?, ?)").bind(pollA, pollB).run()
+
+    // Poll A: Alice's pick wins (score 1), Bob's pick loses (score 0).
+    const { id: aliceA } = await seedParticipant(pollA, 'Alice')
+    const { id: bobA } = await seedParticipant(pollA, 'Bob')
+    const { id: aWin } = await seedNomination(pollA, aliceA, 'Mad Max')
+    const { id: aLose } = await seedNomination(pollA, bobA, 'Norbit')
+    await env.DB.prepare(
+      'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+    ).bind('v1', pollA, aliceA, aWin, null, Date.now()).run()
+    await env.DB.prepare(
+      'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+    ).bind('v2', pollA, bobA, aLose, null, Date.now()).run()
+
+    // Poll B: Alice votes again (case-different name) and wins again.
+    const { id: aliceB } = await seedParticipant(pollB, 'alice')
+    const { id: bWin } = await seedNomination(pollB, aliceB, 'Anchorman')
+    await env.DB.prepare(
+      'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+    ).bind('v3', pollB, aliceB, bWin, null, Date.now()).run()
+
+    await seedEvent({ id: 'glarm26' })
+    await seedEventPoll('glarm26', pollA, 'Action', 0)
+    await seedEventPoll('glarm26', pollB, 'Comedy', 1)
+
+    const res = await SELF.fetch('http://example.com/events/glarm26')
+    const body = await res.json() as {
+      voter_stats: {
+        luckiest: Array<{ name: string; average_score: number; categories_counted: number }>
+        unluckiest: Array<{ name: string; average_score: number; categories_counted: number }>
+      }
+    }
+    // Alice voted in both categories and won both — averages to 1, counted once
+    // despite the case-different name across the two polls.
+    const alice = body.voter_stats.luckiest.find(l => l.name.toLowerCase() === 'alice')!
+    expect(alice.average_score).toBe(1)
+    expect(alice.categories_counted).toBe(2)
+    expect(body.voter_stats.unluckiest[0]!.name).toBe('Bob')
+    expect(body.voter_stats.unluckiest[0]!.average_score).toBe(0)
+  })
 })
 
 describe('POST /events/:slug/join', () => {
