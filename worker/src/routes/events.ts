@@ -112,6 +112,15 @@ eventsRouter.get('/:slug', async (c) => {
     links.map(link => buildPollResponse(c.env, link.poll_id, tokens.get(link.poll_id) ?? null))
   )
   const luckScoresByName = new Map<string, { displayName: string; scores: number[] }>()
+  // Same gate as the final `phase === 'closed' || isEventAdmin` check below,
+  // computed up front so the (potentially O(n^2) rankedPairs) luck tally can
+  // be skipped entirely for the common case: an unauthorized viewer polling
+  // an event that's still voting. Kept in sync with the `phase` computation
+  // further down, which depends only on pollResponses, not on anything
+  // produced inside this loop.
+  const nonNullPollResponses = pollResponses.filter((p): p is NonNullable<typeof p> => p != null)
+  const wantsVoterStats = isEventAdmin
+    || (nonNullPollResponses.length > 0 && nonNullPollResponses.every(p => p.phase === 'closed'))
 
   links.forEach((link, i) => {
     const pollResponse = pollResponses[i]
@@ -122,11 +131,12 @@ eventsRouter.get('/:slug', async (c) => {
 
     const nominations = nominationsByPoll[link.poll_id] ?? []
     const votes = votesByPoll[link.poll_id] ?? []
-    resultsByCategory.set(link.category, rankedChoice(votes, nominations))
+    const rankedChoiceResult = rankedChoice(votes, nominations)
+    resultsByCategory.set(link.category, rankedChoiceResult)
 
-    if (!isVisible) return
+    if (!isVisible || !wantsVoterStats) return
     const categoryResults = pollResponse.voting_method === 'plurality' ? plurality(votes, nominations)
-      : pollResponse.voting_method === 'ranked_choice' ? rankedChoice(votes, nominations)
+      : pollResponse.voting_method === 'ranked_choice' ? rankedChoiceResult
       : rankedPairs(votes, nominations)
     const namesForPoll = participantNamesByPoll[link.poll_id] ?? []
     const nameById = new Map(namesForPoll.map(p => [p.id, p.name]))
@@ -144,7 +154,7 @@ eventsRouter.get('/:slug', async (c) => {
     luckiest: Array<{ name: string; average_score: number; categories_counted: number }>
     unluckiest: Array<{ name: string; average_score: number; categories_counted: number }>
   } | undefined
-  if (phase === 'closed' || isEventAdmin) {
+  if (wantsVoterStats) {
     const averaged = [...luckScoresByName.values()].map(({ displayName, scores }) => ({
       name: displayName,
       average_score: scores.reduce((sum, s) => sum + s, 0) / scores.length,
