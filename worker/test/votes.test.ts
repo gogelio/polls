@@ -239,21 +239,28 @@ describe('GET /polls/:id/results', () => {
 
   it('lists the luckiest and unluckiest voters by their top pick\'s placement', async () => {
     const { id } = await seedPoll({ voting_method: 'plurality' })
-    const { id: p1 } = await seedParticipant(id, 'Alice')
-    const { id: p2 } = await seedParticipant(id, 'Bob')
-    const { id: p3 } = await seedParticipant(id, 'Carol')
-    const { id: winner } = await seedNomination(id, p1, 'Winner')
-    const { id: loser } = await seedNomination(id, p2, 'Loser')
+    const { id: alice } = await seedParticipant(id, 'Alice')
+    const { id: bob } = await seedParticipant(id, 'Bob')
+    const { id: carol } = await seedParticipant(id, 'Carol')
+    const { id: dave } = await seedParticipant(id, 'Dave')
+    const { id: eve } = await seedParticipant(id, 'Eve')
+    const { id: frank } = await seedParticipant(id, 'Frank')
+    const { id: winner } = await seedNomination(id, alice, 'Winner')
+    const { id: middle } = await seedNomination(id, dave, 'Middle')
+    const { id: last } = await seedNomination(id, frank, 'Last')
     await env.DB.prepare("UPDATE polls SET phase = 'closed' WHERE id = ?").bind(id).run()
-    await env.DB.prepare(
-      'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
-    ).bind('v1', id, p1, winner, null, Date.now()).run()
-    await env.DB.prepare(
-      'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
-    ).bind('v2', id, p2, winner, null, Date.now()).run()
-    await env.DB.prepare(
-      'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
-    ).bind('v3', id, p3, loser, null, Date.now()).run()
+
+    const insertVote = (voteId: string, participantId: string, nominationId: string) =>
+      env.DB.prepare(
+        'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+      ).bind(voteId, id, participantId, nominationId, null, Date.now()).run()
+
+    await insertVote('v1', alice, winner)
+    await insertVote('v2', bob, winner)
+    await insertVote('v3', carol, winner)
+    await insertVote('v4', dave, middle)
+    await insertVote('v5', eve, middle)
+    await insertVote('v6', frank, last)
 
     const res = await SELF.fetch(`http://example.com/polls/${id}/results`)
     const body = await res.json() as {
@@ -263,9 +270,11 @@ describe('GET /polls/:id/results', () => {
       }
     }
     const luckyNames = body.voter_stats.luckiest.map(l => l.participant_name).sort()
-    expect(luckyNames).toEqual(['Alice', 'Bob'])
-    expect(body.voter_stats.unluckiest[0]!.participant_name).toBe('Carol')
-    expect(body.voter_stats.unluckiest[0]!.placement).toBe(2)
+    expect(luckyNames).toEqual(['Alice', 'Bob', 'Carol'])
+    expect(body.voter_stats.luckiest.every(l => l.placement === 1)).toBe(true)
+    expect(body.voter_stats.unluckiest[0]!.participant_name).toBe('Frank')
+    expect(body.voter_stats.unluckiest[0]!.placement).toBe(3)
+    expect(body.voter_stats.unluckiest.map(l => l.participant_name).sort()).toEqual(['Dave', 'Eve', 'Frank'])
   })
 })
 

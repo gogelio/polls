@@ -144,15 +144,7 @@ votesRouter.get('/:id/results', async (c) => {
     ).bind(pollId).all<{ id: string; name: string }>()
     const nameById = new Map(participants.map(p => [p.id, p.name]))
     const luck = computeVoterLuck(votes, results, nameById)
-    // Split into non-overlapping halves (each capped at 3) rather than raw
-    // slice(0,3)/slice(-3) — with few voters those windows overlap and the
-    // same person shows up as both luckiest and unluckiest.
-    const luckyCount = Math.min(3, Math.ceil(luck.length / 2))
-    const unluckyCount = Math.min(3, luck.length - luckyCount)
-    voterStats = {
-      luckiest: luck.slice(0, luckyCount),
-      unluckiest: luck.slice(luck.length - unluckyCount).reverse(),
-    }
+    voterStats = { luckiest: luck.slice(0, 3), unluckiest: luck.slice(-3).reverse() }
   }
 
   return c.json({
