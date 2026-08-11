@@ -8,6 +8,10 @@ import { api } from '../api/client'
 vi.mock('../api/client', () => ({
   api: {
     getEventVoters: vi.fn(),
+    closeEvent: vi.fn(),
+    toggleEventPause: vi.fn(),
+    toggleEventVotesVisible: vi.fn(),
+    deleteEvent: vi.fn(),
   },
 }))
 
