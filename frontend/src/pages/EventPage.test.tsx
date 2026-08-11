@@ -189,3 +189,47 @@ describe('EventPage header voter stats', () => {
     expect(await screen.findByText(expected, { exact: false })).toBeTruthy()
   })
 })
+
+describe('EventPage voter stats', () => {
+  afterEach(() => {
+    cleanup()
+    fakeTokenStore.clear()
+  })
+
+  it('renders the event voter stats section when voter_stats is present', async () => {
+    fakeTokenStore.add('action-poll')
+    vi.mocked(api.getEvent).mockResolvedValue({
+      ...buildEvent(['a', 'b', 'c']),
+      voter_stats: {
+        luckiest: [{ name: 'Alice', average_score: 1, categories_counted: 1 }],
+        unluckiest: [{ name: 'Bob', average_score: 0, categories_counted: 1 }],
+      },
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/e/glarm26']}>
+        <Routes>
+          <Route path="/e/:slug" element={<EventPage />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    expect(await screen.findByText('🍀 Luckiest Overall')).toBeTruthy()
+  })
+
+  it('omits the voter stats section when voter_stats is absent', async () => {
+    fakeTokenStore.add('action-poll')
+    vi.mocked(api.getEvent).mockResolvedValue(buildEvent(['a', 'b', 'c']))
+
+    render(
+      <MemoryRouter initialEntries={['/e/glarm26']}>
+        <Routes>
+          <Route path="/e/:slug" element={<EventPage />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    await screen.findByText('Action')
+    expect(screen.queryByText('🍀 Luckiest Overall')).toBeNull()
+  })
+})

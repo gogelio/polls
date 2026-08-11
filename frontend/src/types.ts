@@ -68,6 +68,12 @@ export interface VoterLuck {
   score: number
 }
 
+export interface EventVoterStat {
+  name: string
+  average_score: number
+  categories_counted: number
+}
+
 export interface PollResults {
   poll_id: string
   voting_method: VotingMethod
@@ -119,5 +125,6 @@ export interface EventPayload {
   categories: EventCategory[]
   schedule: EventDay[]
   voter_count: number
+  voter_stats?: { luckiest: EventVoterStat[]; unluckiest: EventVoterStat[] }
   created_at: number
 }

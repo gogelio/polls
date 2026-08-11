@@ -6,6 +6,7 @@ import { VotingPhase } from '../components/VotingPhase'
 import { ResultsView } from '../components/ResultsView'
 import { EventAdminControls } from '../components/EventAdminControls'
 import { Bracket } from '../components/Bracket'
+import { EventVoterStats } from '../components/EventVoterStats'
 import type { Poll } from '../types'
 
 // Reading localStorage directly (rather than through api/client.ts, which
@@ -200,6 +201,10 @@ export function EventPage() {
       </div>
 
       <Bracket schedule={event.schedule} />
+
+      {event.voter_stats && (
+        <EventVoterStats luckiest={event.voter_stats.luckiest} unluckiest={event.voter_stats.unluckiest} />
+      )}
 
       {adminToken && (
         <EventAdminControls event={event} adminToken={adminToken} onRefetch={refetch} onDeleted={() => navigate('/')} />
