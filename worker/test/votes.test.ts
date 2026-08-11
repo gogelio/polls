@@ -193,6 +193,80 @@ describe('GET /polls/:id/results', () => {
     const res = await SELF.fetch(`http://example.com/polls/${id}/results?admin=not-a-real-token`)
     expect(res.status).toBe(403)
   })
+
+  it('omits voter_stats during voting when no admin token is provided', async () => {
+    const { id } = await seedPoll({ voting_method: 'plurality', votes_visible: 1 })
+    const { id: pid } = await seedParticipant(id)
+    const { id: nid } = await seedNomination(id, pid, 'Winner')
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(id).run()
+    await env.DB.prepare(
+      'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+    ).bind('v1', id, pid, nid, null, Date.now()).run()
+
+    const res = await SELF.fetch(`http://example.com/polls/${id}/results`)
+    const body = await res.json() as Record<string, unknown>
+    expect(body.voter_stats).toBeUndefined()
+  })
+
+  it('includes voter_stats for a valid poll admin token during voting phase', async () => {
+    const { id, adminToken } = await seedPoll({ voting_method: 'plurality', votes_visible: 1 })
+    const { id: pid } = await seedParticipant(id)
+    const { id: nid } = await seedNomination(id, pid, 'Winner')
+    await env.DB.prepare("UPDATE polls SET phase = 'voting' WHERE id = ?").bind(id).run()
+    await env.DB.prepare(
+      'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+    ).bind('v1', id, pid, nid, null, Date.now()).run()
+
+    const res = await SELF.fetch(`http://example.com/polls/${id}/results?admin=${adminToken}`)
+    const body = await res.json() as { voter_stats?: { luckiest: unknown[]; unluckiest: unknown[] } }
+    expect(body.voter_stats).toBeDefined()
+    expect(body.voter_stats!.luckiest).toHaveLength(1)
+  })
+
+  it('includes voter_stats for everyone once the poll is closed', async () => {
+    const { id } = await seedPoll({ voting_method: 'plurality' })
+    const { id: pid } = await seedParticipant(id)
+    const { id: nid } = await seedNomination(id, pid, 'Winner')
+    await env.DB.prepare("UPDATE polls SET phase = 'closed' WHERE id = ?").bind(id).run()
+    await env.DB.prepare(
+      'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+    ).bind('v1', id, pid, nid, null, Date.now()).run()
+
+    const res = await SELF.fetch(`http://example.com/polls/${id}/results`)
+    const body = await res.json() as { voter_stats?: { luckiest: unknown[] } }
+    expect(body.voter_stats).toBeDefined()
+  })
+
+  it('lists the luckiest and unluckiest voters by their top pick\'s placement', async () => {
+    const { id } = await seedPoll({ voting_method: 'plurality' })
+    const { id: p1 } = await seedParticipant(id, 'Alice')
+    const { id: p2 } = await seedParticipant(id, 'Bob')
+    const { id: p3 } = await seedParticipant(id, 'Carol')
+    const { id: winner } = await seedNomination(id, p1, 'Winner')
+    const { id: loser } = await seedNomination(id, p2, 'Loser')
+    await env.DB.prepare("UPDATE polls SET phase = 'closed' WHERE id = ?").bind(id).run()
+    await env.DB.prepare(
+      'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+    ).bind('v1', id, p1, winner, null, Date.now()).run()
+    await env.DB.prepare(
+      'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+    ).bind('v2', id, p2, winner, null, Date.now()).run()
+    await env.DB.prepare(
+      'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+    ).bind('v3', id, p3, loser, null, Date.now()).run()
+
+    const res = await SELF.fetch(`http://example.com/polls/${id}/results`)
+    const body = await res.json() as {
+      voter_stats: {
+        luckiest: Array<{ participant_name: string; placement: number }>
+        unluckiest: Array<{ participant_name: string; placement: number }>
+      }
+    }
+    const luckyNames = body.voter_stats.luckiest.map(l => l.participant_name).sort()
+    expect(luckyNames).toEqual(['Alice', 'Bob'])
+    expect(body.voter_stats.unluckiest[0]!.participant_name).toBe('Carol')
+    expect(body.voter_stats.unluckiest[0]!.placement).toBe(2)
+  })
 })
 
 describe('PATCH /polls/:id/vote-draft', () => {

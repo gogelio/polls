@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { nanoid } from 'nanoid'
 import type { Env, Poll, Vote, Nomination } from '../types'
 import { participantAuth, isValidAdminToken } from '../middleware/auth'
-import { plurality, rankedChoice, rankedPairs } from '../lib/voting'
+import { plurality, rankedChoice, rankedPairs, computeVoterLuck, type VoterLuck } from '../lib/voting'
 
 type Variables = { participantId: string }
 export const votesRouter = new Hono<{ Bindings: Env; Variables: Variables }>()
@@ -134,5 +134,33 @@ votesRouter.get('/:id/results', async (c) => {
 
   const tied = results.length > 1 && results[0]?.score === results[1]?.score
 
-  return c.json({ poll_id: pollId, voting_method: poll.voting_method, results, total_voters: voterCount, tied })
+  const isAuthorizedForVoterStats = poll.phase === 'closed'
+    || (poll.phase === 'voting' && await isValidAdminToken(c.env, pollId, c.req.query('admin')))
+
+  let voterStats: { luckiest: VoterLuck[]; unluckiest: VoterLuck[] } | undefined
+  if (isAuthorizedForVoterStats) {
+    const { results: participants } = await c.env.DB.prepare(
+      'SELECT id, name FROM participants WHERE poll_id = ?'
+    ).bind(pollId).all<{ id: string; name: string }>()
+    const nameById = new Map(participants.map(p => [p.id, p.name]))
+    const luck = computeVoterLuck(votes, results, nameById)
+    // Split into non-overlapping halves (each capped at 3) rather than raw
+    // slice(0,3)/slice(-3) — with few voters those windows overlap and the
+    // same person shows up as both luckiest and unluckiest.
+    const luckyCount = Math.min(3, Math.ceil(luck.length / 2))
+    const unluckyCount = Math.min(3, luck.length - luckyCount)
+    voterStats = {
+      luckiest: luck.slice(0, luckyCount),
+      unluckiest: luck.slice(luck.length - unluckyCount).reverse(),
+    }
+  }
+
+  return c.json({
+    poll_id: pollId,
+    voting_method: poll.voting_method,
+    results,
+    total_voters: voterCount,
+    tied,
+    voter_stats: voterStats,
+  })
 })
