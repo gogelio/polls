@@ -104,3 +104,37 @@ describe('ResultsView hideNominatedBy', () => {
     expect(screen.queryByText(/nominated by/)).toBeNull()
   })
 })
+
+describe('ResultsView voter stats', () => {
+  it('renders luckiest and unluckiest picks when voter_stats is present', async () => {
+    vi.mocked(api.getResults).mockResolvedValue({
+      ...buildResults(),
+      voter_stats: {
+        luckiest: [{ participant_id: 'p1', participant_name: 'Alice', nomination_id: 'a', title: 'Movie A', placement: 1, total: 2, score: 1 }],
+        unluckiest: [{ participant_id: 'p2', participant_name: 'Bob', nomination_id: 'b', title: 'Movie B', placement: 2, total: 2, score: 0 }],
+      },
+    })
+    render(
+      <MemoryRouter>
+        <ResultsView poll={buildPoll()} />
+      </MemoryRouter>
+    )
+
+    expect(await screen.findByText('🍀 Luckiest Picks')).toBeTruthy()
+    expect(screen.getByText('💔 Unluckiest Picks')).toBeTruthy()
+    expect(screen.getByText('Alice')).toBeTruthy()
+    expect(screen.getByText('Bob')).toBeTruthy()
+  })
+
+  it('omits the voter stats card when voter_stats is absent', async () => {
+    vi.mocked(api.getResults).mockResolvedValue(buildResults())
+    render(
+      <MemoryRouter>
+        <ResultsView poll={buildPoll()} />
+      </MemoryRouter>
+    )
+
+    await waitFor(() => expect(screen.getAllByText('Movie A').length).toBeGreaterThan(0))
+    expect(screen.queryByText('🍀 Luckiest Picks')).toBeNull()
+  })
+})

@@ -58,12 +58,23 @@ export interface RankedResult {
   percentage: number
 }
 
+export interface VoterLuck {
+  participant_id: string
+  participant_name: string
+  nomination_id: string
+  title: string
+  placement: number
+  total: number
+  score: number
+}
+
 export interface PollResults {
   poll_id: string
   voting_method: VotingMethod
   results: RankedResult[]
   total_voters: number
   tied: boolean
+  voter_stats?: { luckiest: VoterLuck[]; unluckiest: VoterLuck[] }
 }
 
 export interface SearchResult {
