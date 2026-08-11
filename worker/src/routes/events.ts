@@ -294,3 +294,43 @@ eventsRouter.delete('/:slug', eventAdminAuth, async (c) => {
   await c.env.DB.batch(statements)
   return c.json({ ok: true })
 })
+
+eventsRouter.get('/:slug/voters', eventAdminAuth, async (c) => {
+  const slug = c.req.param('slug')
+  const { results: links } = await c.env.DB.prepare(
+    'SELECT poll_id FROM event_polls WHERE event_id = ?'
+  ).bind(slug).all<{ poll_id: string }>()
+  if (links.length === 0) return c.json({ error: 'Event not found' }, 404)
+
+  const pollIds = links.map(l => l.poll_id)
+  const placeholders = pollIds.map(() => '?').join(',')
+
+  const [{ results: participants }, { results: votes }] = await Promise.all([
+    c.env.DB.prepare(
+      `SELECT id, poll_id, name FROM participants WHERE poll_id IN (${placeholders})`
+    ).bind(...pollIds).all<{ id: string; poll_id: string; name: string }>(),
+    c.env.DB.prepare(
+      `SELECT DISTINCT poll_id, participant_id FROM votes WHERE poll_id IN (${placeholders})`
+    ).bind(...pollIds).all<{ poll_id: string; participant_id: string }>(),
+  ])
+
+  const votedPollsByParticipant = new Map<string, Set<string>>()
+  for (const v of votes) {
+    if (!votedPollsByParticipant.has(v.participant_id)) votedPollsByParticipant.set(v.participant_id, new Set())
+    votedPollsByParticipant.get(v.participant_id)!.add(v.poll_id)
+  }
+
+  const byName = new Map<string, { displayName: string; votedPolls: Set<string> }>()
+  for (const p of participants) {
+    const key = p.name.toLowerCase()
+    if (!byName.has(key)) byName.set(key, { displayName: p.name, votedPolls: new Set() })
+    const votedPolls = votedPollsByParticipant.get(p.id)
+    if (votedPolls) for (const pollId of votedPolls) byName.get(key)!.votedPolls.add(pollId)
+  }
+
+  const voters = [...byName.values()]
+    .map(({ displayName, votedPolls }) => ({ name: displayName, submitted_count: votedPolls.size }))
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+
+  return c.json({ voters, total_categories: pollIds.length })
+})

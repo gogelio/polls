@@ -525,3 +525,91 @@ describe('DELETE /events/:slug', () => {
     expect(slots.results).toHaveLength(0)
   })
 })
+
+describe('GET /events/:slug/voters', () => {
+  beforeEach(applySchema)
+
+  it('rejects an invalid admin token', async () => {
+    const { id: pollA } = await seedPoll()
+    await seedEvent({ id: 'glarm26' })
+    await seedEventPoll('glarm26', pollA, 'Action', 0)
+
+    const res = await SELF.fetch('http://example.com/events/glarm26/voters?admin=wrong')
+    expect(res.status).toBe(401)
+  })
+
+  it('returns 404 for an unknown slug', async () => {
+    const res = await SELF.fetch('http://example.com/events/nope/voters?admin=whatever')
+    expect(res.status).toBe(404)
+  })
+
+  it('reports submitted_count per voter, including a 0-submission joiner', async () => {
+    const { id: pollA } = await seedPoll({ voting_method: 'plurality' })
+    const { id: pollB } = await seedPoll({ voting_method: 'plurality' })
+    const { id: alice } = await seedParticipant(pollA, 'Alice')
+    await seedParticipant(pollB, 'Alice')
+    const { id: bob } = await seedParticipant(pollA, 'Bob')
+    await seedParticipant(pollB, 'Carol')
+    const { id: nomA } = await seedNomination(pollA, alice, 'Movie A')
+    const { id: nomB } = await seedNomination(pollB, alice, 'Movie B')
+
+    // Alice votes in both polls, Bob votes in one, Carol never votes.
+    await env.DB.prepare(
+      'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+    ).bind('v1', pollA, alice, nomA, null, Date.now()).run()
+    await env.DB.prepare(
+      'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+    ).bind('v2', pollB, alice, nomB, null, Date.now()).run()
+    await env.DB.prepare(
+      'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+    ).bind('v3', pollA, bob, nomA, null, Date.now()).run()
+
+    const { adminToken } = await seedEvent({ id: 'glarm26' })
+    await seedEventPoll('glarm26', pollA, 'Action', 0)
+    await seedEventPoll('glarm26', pollB, 'Comedy', 1)
+
+    const res = await SELF.fetch(`http://example.com/events/glarm26/voters?admin=${adminToken}`)
+    expect(res.status).toBe(200)
+    const body = await res.json() as { voters: Array<{ name: string; submitted_count: number }>; total_categories: number }
+    expect(body.total_categories).toBe(2)
+    expect(body.voters).toHaveLength(3)
+    const byName = Object.fromEntries(body.voters.map(v => [v.name, v.submitted_count]))
+    expect(byName['Alice']).toBe(2)
+    expect(byName['Bob']).toBe(1)
+    expect(byName['Carol']).toBe(0)
+  })
+
+  it('merges the same person across polls case-insensitively into one row', async () => {
+    const { id: pollA } = await seedPoll({ voting_method: 'plurality' })
+    const { id: pollB } = await seedPoll({ voting_method: 'plurality' })
+    const { id: aliceA } = await seedParticipant(pollA, 'Alice')
+    await seedParticipant(pollB, 'alice')
+    const { id: nomA } = await seedNomination(pollA, aliceA, 'Movie A')
+    await env.DB.prepare(
+      'INSERT INTO votes (id, poll_id, participant_id, nomination_id, rank, created_at) VALUES (?,?,?,?,?,?)'
+    ).bind('v1', pollA, aliceA, nomA, null, Date.now()).run()
+
+    const { adminToken } = await seedEvent({ id: 'glarm26' })
+    await seedEventPoll('glarm26', pollA, 'Action', 0)
+    await seedEventPoll('glarm26', pollB, 'Comedy', 1)
+
+    const res = await SELF.fetch(`http://example.com/events/glarm26/voters?admin=${adminToken}`)
+    const body = await res.json() as { voters: Array<{ name: string; submitted_count: number }> }
+    expect(body.voters).toHaveLength(1)
+    expect(body.voters[0]!.submitted_count).toBe(1)
+  })
+
+  it('sorts voters alphabetically, case-insensitively', async () => {
+    const { id: pollA } = await seedPoll()
+    await seedParticipant(pollA, 'carol')
+    await seedParticipant(pollA, 'Alice')
+    await seedParticipant(pollA, 'Bob')
+
+    const { adminToken } = await seedEvent({ id: 'glarm26' })
+    await seedEventPoll('glarm26', pollA, 'Action', 0)
+
+    const res = await SELF.fetch(`http://example.com/events/glarm26/voters?admin=${adminToken}`)
+    const body = await res.json() as { voters: Array<{ name: string }> }
+    expect(body.voters.map(v => v.name)).toEqual(['Alice', 'Bob', 'carol'])
+  })
+})
