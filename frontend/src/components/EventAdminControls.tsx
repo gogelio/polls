@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import type { EventPayload } from '../types'
+import type { EventPayload, EventVoter } from '../types'
 import { api } from '../api/client'
 
 interface EventAdminControlsProps {
@@ -9,7 +9,7 @@ interface EventAdminControlsProps {
   onDeleted: () => void
 }
 
-type Mode = 'default' | 'deleting' | 'deleted'
+type Mode = 'default' | 'deleting' | 'deleted' | 'voters'
 
 export function EventAdminControls({ event, adminToken, onRefetch, onDeleted }: EventAdminControlsProps) {
   const [mode, setMode] = useState<Mode>('default')
@@ -18,6 +18,9 @@ export function EventAdminControls({ event, adminToken, onRefetch, onDeleted }: 
   const [votesVisibleLoading, setVotesVisibleLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [countdown, setCountdown] = useState(10)
+  const [voters, setVoters] = useState<EventVoter[] | null>(null)
+  const [totalCategories, setTotalCategories] = useState(0)
+  const [votersLoading, setVotersLoading] = useState(false)
   const isPaused = event.categories.some(cat => cat.poll.is_paused)
   const votesVisible = event.categories.some(cat => cat.poll.votes_visible)
 
@@ -60,6 +63,21 @@ export function EventAdminControls({ event, adminToken, onRefetch, onDeleted }: 
     }
   }
 
+  const handleViewVoters = async () => {
+    setMode('voters')
+    setVotersLoading(true)
+    setError(null)
+    try {
+      const data = await api.getEventVoters(event.id, adminToken)
+      setVoters(data.voters)
+      setTotalCategories(data.total_categories)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load voters')
+    } finally {
+      setVotersLoading(false)
+    }
+  }
+
   useEffect(() => {
     if (mode !== 'deleted') return
     setCountdown(10)
@@ -76,7 +94,7 @@ export function EventAdminControls({ event, adminToken, onRefetch, onDeleted }: 
     return () => clearInterval(interval)
   }, [mode])
 
-  const isWide = mode === 'deleting' || mode === 'deleted'
+  const isWide = mode === 'deleting' || mode === 'deleted' || mode === 'voters'
 
   return (
     <div className={`fixed bottom-4 right-4 bg-[var(--raised-glass)] backdrop-blur-md border border-line-bright rounded-2xl p-4 shadow-2xl shadow-black/60 space-y-3 transition-all duration-200 ${isWide ? 'w-72' : 'w-52'}`}>
@@ -112,6 +130,12 @@ export function EventAdminControls({ event, adminToken, onRefetch, onDeleted }: 
             className="w-full text-xs font-semibold py-2 rounded-xl transition-colors disabled:opacity-40 border border-line hover:border-line-bright text-ink-2 hover:text-ink"
           >
             {votesVisibleLoading ? '…' : votesVisible ? '🙈 Hide live results' : '👁 Show live results'}
+          </button>
+          <button
+            onClick={handleViewVoters}
+            className="w-full text-xs font-semibold py-2 rounded-xl transition-colors border border-line hover:border-line-bright text-ink-2 hover:text-ink"
+          >
+            👥 View voters
           </button>
           <button
             onClick={() => { setError(null); setMode('deleting') }}
@@ -153,6 +177,29 @@ export function EventAdminControls({ event, adminToken, onRefetch, onDeleted }: 
               Delete
             </button>
           </div>
+        </>
+      )}
+
+      {mode === 'voters' && (
+        <>
+          <p className="text-xs font-semibold text-ink">Voters ({voters?.length ?? 0})</p>
+          {votersLoading && <p className="text-ink-3 text-xs animate-pulse">Loading…</p>}
+          {!votersLoading && voters && (
+            <div className="max-h-64 overflow-y-auto space-y-1.5">
+              {voters.map(v => (
+                <div key={v.name} className="flex items-center justify-between gap-2 text-xs">
+                  <span className="text-ink truncate">{v.name}</span>
+                  <span className="text-ink-3 tabular-nums flex-shrink-0">{v.submitted_count}/{totalCategories}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <button
+            onClick={() => { setError(null); setVoters(null); setMode('default') }}
+            className="w-full text-xs text-ink-3 hover:text-ink border border-line rounded-xl py-2 transition-colors"
+          >
+            ← Back
+          </button>
         </>
       )}
 

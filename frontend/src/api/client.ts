@@ -1,4 +1,4 @@
-import type { Poll, PollResults, PublicPollSummary, SearchResult, EventPayload } from '../types'
+import type { Poll, PollResults, PublicPollSummary, SearchResult, EventPayload, EventVoter } from '../types'
 
 const BASE = import.meta.env.VITE_API_URL ?? '/api'
 
@@ -222,6 +222,11 @@ export const api = {
     const res = await throwIfError(await fetch(`${BASE}/events/${slug}/votes-visible?admin=${adminToken}`, {
       method: 'PATCH',
     }))
+    return res.json()
+  },
+
+  getEventVoters: async (slug: string, adminToken: string): Promise<{ voters: EventVoter[]; total_categories: number }> => {
+    const res = await throwIfError(await fetch(`${BASE}/events/${slug}/voters?admin=${adminToken}`))
     return res.json()
   },
 

@@ -117,6 +117,11 @@ export interface EventDay {
   slots: EventSlot[]
 }
 
+export interface EventVoter {
+  name: string
+  submitted_count: number
+}
+
 export interface EventPayload {
   id: string
   title: string
